@@ -358,5 +358,95 @@
       "upload_mbps": 19.91,
       "ping_ms": 9.644
     }
+  },
+  {
+    "timestamp": "2025-12-05T10:54:13+0100",
+    "networkquality": {
+      "download_mbps": 50,
+      "upload_mbps": 13,
+      "responsiveness": 97
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.390,
+        "rtt_avg": 24.871,
+        "rtt_max": 68.883,
+        "rtt_stddev": 15.116
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 9.681,
+        "rtt_avg": 18.184,
+        "rtt_max": 29.417,
+        "rtt_stddev": 4.731
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.039068,
+        "ttfb": 0.436168,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.031878,
+        "ttfb": 0.179980,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 57.21,
+      "upload_mbps": 19.06,
+      "ping_ms": 10.796
+    }
+  },
+  {
+    "timestamp": "2025-12-05T11:10:53+0100",
+    "networkquality": {
+      "download_mbps": 50,
+      "upload_mbps": 17,
+      "responsiveness": 62
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 13.628,
+        "rtt_avg": 26.807,
+        "rtt_max": 63.420,
+        "rtt_stddev": 15.838
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 11.348,
+        "rtt_avg": 17.945,
+        "rtt_max": 32.299,
+        "rtt_stddev": 5.659
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.040251,
+        "ttfb": 0.526255,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.040983,
+        "ttfb": 0.170081,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 57.60,
+      "upload_mbps": 18.90,
+      "ping_ms": 10.688
+    }
   }
 ]

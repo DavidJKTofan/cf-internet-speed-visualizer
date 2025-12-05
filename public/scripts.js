@@ -58,7 +58,19 @@ const commonOptions = {
 	maintainAspectRatio: false,
 	interaction: { mode: 'index', intersect: false },
 	plugins: {
-		legend: { display: false },
+		legend: {
+			display: true,
+			position: 'bottom',
+			align: 'start',
+			labels: {
+				color: '#94a3b8',
+				boxWidth: 12,
+				padding: 20,
+				font: {
+					size: 12,
+				},
+			},
+		},
 		tooltip: {
 			backgroundColor: 'rgba(15, 23, 42, 0.95)',
 			titleColor: '#cbd5e1',
@@ -72,7 +84,21 @@ const commonOptions = {
 	},
 	scales: {
 		x: {
-			ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 30, minRotation: 30 },
+			type: 'time',
+			time: {
+				unit: 'hour',
+				displayFormats: {
+					hour: 'MMM d, ha',
+				},
+			},
+			ticks: {
+				color: '#94a3b8',
+				font: { size: 11 },
+				source: 'auto',
+				maxRotation: 0,
+				autoSkip: true,
+				autoSkipPadding: 20,
+			},
 			grid: { color: 'rgba(51, 65, 85, 0.5)', drawBorder: false },
 		},
 		y: {
@@ -88,8 +114,6 @@ const commonOptions = {
 };
 
 // Utility functions
-const formatTimestamp = (timestamp) => new Date(timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
 function timeAgo(date) {
 	const seconds = Math.floor((new Date() - date) / 1000);
 	let interval = seconds / 31536000;
@@ -280,8 +304,6 @@ function createDataset(label, data, color, options = {}) {
 }
 
 function renderCharts(data) {
-	const labels = data.map((d) => formatTimestamp(d.timestamp));
-
 	Object.values(charts).forEach((chart) => chart.destroy());
 	charts = {};
 
@@ -290,60 +312,142 @@ function renderCharts(data) {
 			type: 'line',
 			data: {
 				datasets: [
-					createDataset('NQ Download', data.map(d => d.nq_download_mbps), CHART_COLORS.primary),
-					createDataset('NQ Upload', data.map(d => d.nq_upload_mbps), CHART_COLORS.secondary),
-					createDataset('ST Download', data.map(d => d.st_download_mbps), CHART_COLORS.senary, { borderDash: [5, 5], fill: false }),
+					createDataset(
+						'NQ Download',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.nq_download_mbps })),
+						CHART_COLORS.primary
+					),
+					createDataset(
+						'NQ Upload',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.nq_upload_mbps })),
+						CHART_COLORS.secondary
+					),
+					createDataset(
+						'ST Download',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.st_download_mbps })),
+						CHART_COLORS.senary,
+						{ borderDash: [5, 5], fill: false }
+					),
 				],
 			},
-			options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'Mbps', color: '#94a3b8' } } } },
+			options: {
+				...commonOptions,
+				scales: {
+					...commonOptions.scales,
+					y: { ...commonOptions.scales.y, title: { display: true, text: 'Mbps', color: '#94a3b8' } },
+				},
+			},
 		},
 		latencyChart: {
 			type: 'line',
 			data: {
 				datasets: [
-					createDataset('Cloudflare RTT', data.map(d => d.ping_cf_rtt_avg), CHART_COLORS.tertiary),
-					createDataset('Google RTT', data.map(d => d.ping_google_rtt_avg), CHART_COLORS.quaternary),
-					createDataset('US TTFB', data.map(d => d.curl_us_ttfb ? d.curl_us_ttfb * 1000 : null), CHART_COLORS.quinary, { fill: false, borderDash: [5, 5] }),
-					createDataset('EU TTFB', data.map(d => d.curl_eu_ttfb ? d.curl_eu_ttfb * 1000 : null), CHART_COLORS.senary, { fill: false, borderDash: [5, 5] }),
+					createDataset(
+						'Cloudflare RTT',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_cf_rtt_avg })),
+						CHART_COLORS.tertiary
+					),
+					createDataset(
+						'Google RTT',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_google_rtt_avg })),
+						CHART_COLORS.quaternary
+					),
+					createDataset(
+						'US TTFB',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.curl_us_ttfb ? d.curl_us_ttfb * 1000 : null })),
+						CHART_COLORS.quinary,
+						{ fill: false, borderDash: [5, 5] }
+					),
+					createDataset(
+						'EU TTFB',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.curl_eu_ttfb ? d.curl_eu_ttfb * 1000 : null })),
+						CHART_COLORS.senary,
+						{ fill: false, borderDash: [5, 5] }
+					),
 				],
 			},
-			options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } } } },
+			options: {
+				...commonOptions,
+				scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } } },
+			},
 		},
 		responsivenessChart: {
 			type: 'bar',
 			data: {
 				datasets: [
-					{ label: 'RPM', data: data.map(d => d.nq_responsiveness), backgroundColor: `${CHART_COLORS.primary}CC`, borderColor: CHART_COLORS.primary, borderWidth: 1 },
-				]
+					{
+						label: 'RPM',
+						data: data.map((d) => ({ x: new Date(d.timestamp), y: d.nq_responsiveness })),
+						backgroundColor: `${CHART_COLORS.primary}CC`,
+						borderColor: CHART_COLORS.primary,
+						borderWidth: 1,
+					},
+				],
 			},
-			options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'RPM', color: '#94a3b8' } } } },
+			options: {
+				...commonOptions,
+				scales: {
+					...commonOptions.scales,
+					y: { ...commonOptions.scales.y, title: { display: true, text: 'RPM', color: '#94a3b8' } },
+				},
+			},
 		},
 		packetLossChart: {
 			type: 'line',
 			data: {
 				datasets: [
-					createDataset('Cloudflare Loss', data.map(d => d.ping_cf_packet_loss), CHART_COLORS.tertiary),
-					createDataset('Google Loss', data.map(d => d.ping_google_packet_loss), CHART_COLORS.quaternary),
+					createDataset(
+						'Cloudflare Loss',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_cf_packet_loss })),
+						CHART_COLORS.tertiary
+					),
+					createDataset(
+						'Google Loss',
+						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_google_packet_loss })),
+						CHART_COLORS.quaternary
+					),
 				],
 			},
-			options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, max: 5, title: { display: true, text: '%', color: '#94a3b8' } } } },
+			options: {
+				...commonOptions,
+				scales: {
+					...commonOptions.scales,
+					y: { ...commonOptions.scales.y, max: 5, title: { display: true, text: '%', color: '#94a3b8' } },
+				},
+			},
 		},
 		dnsChart: {
 			type: 'line',
 			data: {
 				datasets: [
-					createDataset('US DNS', data.map(d => d.curl_us_dns_lookup ? d.curl_us_dns_lookup * 1000 : null), CHART_COLORS.quinary),
-					createDataset('EU DNS', data.map(d => d.curl_eu_dns_lookup ? d.curl_eu_dns_lookup * 1000 : null), CHART_COLORS.senary),
+					createDataset(
+						'US DNS',
+						data.map((d) => ({
+							x: new Date(d.timestamp),
+							y: d.curl_us_dns_lookup ? d.curl_us_dns_lookup * 1000 : null,
+						})),
+						CHART_COLORS.quinary
+					),
+					createDataset(
+						'EU DNS',
+						data.map((d) => ({
+							x: new Date(d.timestamp),
+							y: d.curl_eu_dns_lookup ? d.curl_eu_dns_lookup * 1000 : null,
+						})),
+						CHART_COLORS.senary
+					),
 				],
 			},
-			options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } } } },
+			options: {
+				...commonOptions,
+				scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } } },
+			},
 		},
 	};
 
 	for (const [id, config] of Object.entries(chartConfigs)) {
 		const ctx = document.getElementById(id);
 		if (ctx) {
-			config.data.labels = labels;
 			charts[id] = new Chart(ctx, config);
 		}
 	}

@@ -20,7 +20,10 @@
 
 body {
 	font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-	background: var(--primary);
+	background-color: var(--primary);
+	background-image: linear-gradient(rgba(51, 65, 85, 0.2) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(51, 65, 85, 0.2) 1px, transparent 1px);
+	background-size: 2rem 2rem;
 	color: var(--text);
 	min-height: 100vh;
 	line-height: 1.6;
@@ -32,7 +35,7 @@ body {
 .header {
 	background: rgba(30, 41, 59, 0.8);
 	border-bottom: 1px solid var(--border);
-	padding: 1rem 1.5rem;
+	padding: 1rem 2rem;
 	position: sticky;
 	top: 0;
 	z-index: 100;
@@ -40,7 +43,7 @@ body {
 }
 
 .header-content {
-	max-width: 1600px;
+	max-width: 1800px;
 	margin: 0 auto;
 	display: flex;
 	justify-content: space-between;
@@ -102,14 +105,19 @@ h1 {
 }
 
 @keyframes pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.5; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
 }
 
 .container {
-	max-width: 1600px;
+	max-width: 1800px;
 	margin: 0 auto;
-	padding: 1.5rem;
+	padding: 2rem;
 	flex: 1;
 }
 
@@ -153,7 +161,9 @@ select {
 	background-position: right 0.75rem center;
 }
 
-select:hover { border-color: var(--accent); }
+select:hover {
+	border-color: var(--accent);
+}
 
 select:focus {
 	outline: none;
@@ -276,15 +286,21 @@ select:focus {
 
 .charts-grid {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
+	grid-template-columns: repeat(auto-fit, minmax(25rem, 1fr));
 	gap: 1.5rem;
 }
 
 .chart-container {
-	background: var(--card-bg);
+	background: transparent;
 	border: 1px solid var(--border);
 	border-radius: 0.5rem;
 	padding: 1.5rem;
+	transition: all 0.2s ease-in-out;
+}
+
+.chart-container:hover {
+	background: rgba(30, 41, 59, 0.5);
+	border-color: var(--accent);
 }
 
 .chart-header {
@@ -343,7 +359,9 @@ select:focus {
 	flex-shrink: 0;
 }
 
-.metric-content { flex: 1; }
+.metric-content {
+	flex: 1;
+}
 
 .metric-name {
 	font-size: 0.8125rem;
@@ -363,7 +381,8 @@ canvas {
 }
 
 /* States */
-.loading, .empty-state {
+.loading,
+.empty-state {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -381,9 +400,15 @@ canvas {
 	animation: spin 1s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
 
-.loading-text { color: var(--text-muted); }
+.loading-text {
+	color: var(--text-muted);
+}
 
 .empty-icon {
 	width: 5rem;
@@ -424,7 +449,9 @@ canvas {
 	gap: 0.75rem;
 }
 
-.error-icon { font-size: 1.25rem; }
+.error-icon {
+	font-size: 1.25rem;
+}
 
 /* Tooltip */
 .tooltip {
@@ -449,23 +476,241 @@ canvas {
 }
 
 .tooltip-trigger:hover + .tooltip {
+
 	opacity: 1;
+
 	visibility: visible;
+
 }
+
+
+
+/* Methodology Section */
+
+.methodology-section {
+
+	padding-top: 2rem;
+
+	padding-bottom: 2rem;
+
+	border-top: 1px solid var(--border);
+
+	margin-top: 2rem;
+
+}
+
+
+
+.section-title {
+
+	font-size: 1.5rem;
+
+	font-weight: 600;
+
+	color: white;
+
+	margin-bottom: 0.5rem;
+
+	text-align: center;
+
+}
+
+
+
+.section-description {
+
+	font-size: 1rem;
+
+	color: var(--text-muted);
+
+	max-width: 60rem;
+
+	margin: 0 auto 2rem auto;
+
+	text-align: center;
+
+}
+
+
+
+.methodology-grid {
+
+	display: grid;
+
+	grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+
+	gap: 1.5rem;
+
+}
+
+
+
+.methodology-card {
+
+	background: var(--card-bg);
+
+	border: 1px solid var(--border);
+
+	border-radius: 0.5rem;
+
+	padding: 1.5rem;
+
+	transition: all 0.2s;
+
+}
+
+
+
+.methodology-card:hover {
+
+	border-color: var(--accent);
+
+}
+
+
+
+.methodology-card h3 {
+
+	font-size: 1.125rem;
+
+	font-weight: 600;
+
+	color: white;
+
+	margin-bottom: 0.75rem;
+
+}
+
+
+
+.methodology-card p {
+
+	font-size: 0.875rem;
+
+	color: var(--text-muted);
+
+	line-height: 1.6;
+
+	margin-bottom: 1rem;
+
+}
+
+
+
+.methodology-card ul {
+
+	list-style: none;
+
+	margin-top: 1rem;
+
+}
+
+
+
+.methodology-card li {
+
+	font-size: 0.875rem;
+
+	color: var(--text-muted);
+
+	margin-bottom: 0.5rem;
+
+}
+
+
+
+.methodology-card code {
+
+	font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+	background: var(--secondary);
+
+	border: 1px solid var(--border);
+
+	border-radius: 0.25rem;
+
+	padding: 0.2rem 0.4rem;
+
+	font-size: 0.8125rem;
+
+	color: var(--text);
+
+}
+
+
+
+.methodology-card pre {
+
+	background: var(--secondary);
+
+	border: 1px solid var(--border);
+
+	border-radius: 0.375rem;
+
+	padding: 1rem;
+
+	overflow-x: auto;
+
+}
+
+
+
+.methodology-card pre code {
+
+	padding: 0;
+
+	border: none;
+
+	background: transparent;
+
+}
+
 
 
 /* Footer */
+
 .footer {
-	background: var(--secondary);
-	border-top: 1px solid var(--border);
-	padding: 2rem 1.5rem;
+
+	background: transparent;
+
+	padding: 3rem 2rem 2rem;
+
 	margin-top: 2rem;
+
 }
 
 .footer-content {
-	max-width: 1600px;
+	max-width: 1800px;
 	margin: 0 auto;
 	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1.5rem;
+}
+
+.footer-links {
+	display: flex;
+	gap: 1.5rem;
+}
+
+.footer-link {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--text-muted);
+	text-decoration: none;
+	font-size: 0.875rem;
+	transition: color 0.2s;
+}
+
+.footer-link:hover {
+	color: var(--accent);
+}
+
+.footer-icon {
+	width: 1.25rem;
+	height: 1.25rem;
 }
 
 .footer-disclaimer {
@@ -477,9 +722,9 @@ canvas {
 }
 
 /* Responsive */
-@media (max-width: 1200px) {
+@media (min-width: 1200px) {
 	.charts-grid {
-		grid-template-columns: 1fr;
+		grid-template-columns: repeat(3, 1fr);
 	}
 }
 
@@ -501,11 +746,13 @@ canvas {
 		padding: 1rem;
 		margin-bottom: 1rem;
 	}
-	.stats-grid, .highlights-grid {
+	.stats-grid,
+	.highlights-grid {
 		gap: 0.75rem;
 		margin-bottom: 1rem;
 	}
-	.stat-card, .highlight-card {
+	.stat-card,
+	.highlight-card {
 		padding: 1rem;
 	}
 	.stat-value {
@@ -516,6 +763,7 @@ canvas {
 	}
 	.charts-grid {
 		gap: 1rem;
+		grid-template-columns: 1fr;
 	}
 	.chart-container {
 		padding: 1rem;
