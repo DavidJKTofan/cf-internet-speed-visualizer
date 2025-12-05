@@ -74,6 +74,12 @@ h1 {
 	color: white;
 }
 
+a {
+	color: var(--accent);
+	text-decoration: none;
+	transition: color 0.2s;
+}
+
 .header-meta {
 	text-align: right;
 }
@@ -719,6 +725,50 @@ canvas {
 	line-height: 1.6;
 	max-width: 50rem;
 	margin: 0 auto;
+}
+
+/* MTR Table Styles */
+.mtr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+}
+
+.mtr-table th,
+.mtr-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.mtr-table th {
+    background-color: var(--secondary);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.mtr-table tbody tr:hover {
+    background-color: var(--hover);
+}
+
+.mtr-table td {
+    color: var(--text);
+}
+
+.mtr-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Specific styling for loss percentage to highlight issues */
+.mtr-table .loss-high {
+    color: var(--error);
+    font-weight: bold;
+}
+.mtr-table .loss-medium {
+    color: var(--warning);
 }
 
 /* Responsive */

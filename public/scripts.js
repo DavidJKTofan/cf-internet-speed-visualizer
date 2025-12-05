@@ -1,3 +1,5 @@
+// Enterprise-grade frontend with comprehensive error handling and validation
+
 // Constants
 const CHART_COLORS = {
 	primary: '#3b82f6',
@@ -18,7 +20,7 @@ const TOOLTIP_CONTENT = {
 	'packet-loss-tooltip-trigger':
 		'Percentage of ICMP packets lost during transmission. Packet loss directly impacts connection quality, causing retransmissions and degraded performance. Values above 1% may indicate network problems.',
 	'dns-tooltip-trigger':
-		'DNS lookup duration measures the time required to resolve domain names to IP addresses. This is the first step in any web request and directly impacts perceived load times. Values above 100ms can suggest DNS server issues.',
+		'DNS lookup duration measures the time required to resolve domain names to IP addresses. This is the first step in any web request and directly impacts perceived load times. Values above 100ms can suggest DNS server issues. The `dig` tool provides more precise measurements than cURL.',
 };
 
 const METRIC_META = {
@@ -30,12 +32,14 @@ const METRIC_META = {
 	totalTests: { label: 'Total Tests', unit: '', higherIsBetter: null },
 };
 
-
 // State
 let allData = [];
 let charts = {};
 let currentTimeRange = 'all';
 let lastUpdatedInterval;
+let retryCount = 0;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000;
 
 // DOM Elements
 const DOMElements = {
@@ -50,6 +54,8 @@ const DOMElements = {
 	statsGrid: document.getElementById('statsGrid'),
 	highlightsGrid: document.getElementById('highlightsGrid'),
 	timeRange: document.getElementById('timeRange'),
+	mtrSection: document.getElementById('mtr-section'),
+	mtrTableContainer: document.getElementById('mtrTableContainer'),
 };
 
 // Chart configuration
@@ -66,9 +72,7 @@ const commonOptions = {
 				color: '#94a3b8',
 				boxWidth: 12,
 				padding: 20,
-				font: {
-					size: 12,
-				},
+				font: { size: 12 },
 			},
 		},
 		tooltip: {
@@ -87,9 +91,7 @@ const commonOptions = {
 			type: 'time',
 			time: {
 				unit: 'hour',
-				displayFormats: {
-					hour: 'MMM d, ha',
-				},
+				displayFormats: { hour: 'MMM d, ha' },
 			},
 			ticks: {
 				color: '#94a3b8',
@@ -129,8 +131,16 @@ function timeAgo(date) {
 	return 'just now';
 }
 
+function isValidNumber(value) {
+	return typeof value === 'number' && !isNaN(value) && isFinite(value);
+}
+
+function safeNumber(value, defaultValue = null) {
+	return isValidNumber(value) ? value : defaultValue;
+}
+
 function calculateStatistics(values) {
-	const filteredValues = values.filter((v) => v !== null && !isNaN(v));
+	const filteredValues = values.filter((v) => v !== null && v !== undefined && isValidNumber(v));
 	if (!filteredValues.length) return { avg: 'N/A', max: 'N/A', min: 'N/A', p95: 'N/A' };
 
 	const sorted = [...filteredValues].sort((a, b) => a - b);
@@ -138,7 +148,7 @@ function calculateStatistics(values) {
 	const avg = sum / sorted.length;
 	const max = Math.max(...sorted);
 	const min = Math.min(...sorted);
-	const p95 = sorted[Math.floor(sorted.length * 0.95)];
+	const p95 = sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
 
 	return {
 		avg: avg.toFixed(1),
@@ -148,30 +158,106 @@ function calculateStatistics(values) {
 	};
 }
 
-// API
+// Data validation
+function isValidLogEntry(entry) {
+	if (!entry || typeof entry !== 'object') return false;
+	if (typeof entry.timestamp !== 'string') return false;
+	if (!entry.networkquality || typeof entry.networkquality !== 'object') return false;
+	if (!entry.ping || typeof entry.ping !== 'object') return false;
+	if (!entry.curl || typeof entry.curl !== 'object') return false;
+	return true;
+}
+
+function sanitizeLogEntry(entry) {
+	// Ensure all numeric fields are valid numbers or null
+	const sanitized = { ...entry };
+
+	if (sanitized.nq_download_mbps !== null && sanitized.nq_download_mbps !== undefined) {
+		sanitized.nq_download_mbps = safeNumber(parseFloat(sanitized.nq_download_mbps));
+	}
+	if (sanitized.nq_upload_mbps !== null && sanitized.nq_upload_mbps !== undefined) {
+		sanitized.nq_upload_mbps = safeNumber(parseFloat(sanitized.nq_upload_mbps));
+	}
+	if (sanitized.ping_cf_rtt_avg !== null && sanitized.ping_cf_rtt_avg !== undefined) {
+		sanitized.ping_cf_rtt_avg = safeNumber(parseFloat(sanitized.ping_cf_rtt_avg));
+	}
+
+	return sanitized;
+}
+
+// API with retry logic
 async function fetchData() {
 	try {
-		const response = await fetch('/api/logs?limit=2000');
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		console.log('Fetching network logs...');
+		const response = await fetch('/api/logs?limit=2000', {
+			headers: {
+				Accept: 'application/json',
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const contentType = response.headers.get('content-type');
+		if (!contentType || !contentType.includes('application/json')) {
+			throw new Error('Invalid content type: expected JSON');
+		}
 
 		const data = await response.json();
-		if (!Array.isArray(data)) throw new Error('Invalid data format');
+
+		if (!Array.isArray(data)) {
+			throw new Error('Invalid data format: expected array');
+		}
 
 		if (data.length === 0) {
+			console.log('No data available');
 			showUIState('empty');
+			retryCount = 0;
 			return;
 		}
 
-		allData = data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+		// Validate and sanitize entries
+		const validData = data.filter(isValidLogEntry).map(sanitizeLogEntry);
+
+		if (validData.length === 0) {
+			throw new Error('All entries failed validation');
+		}
+
+		if (validData.length < data.length) {
+			console.warn(`${data.length - validData.length} invalid entries filtered out`);
+		}
+
+		allData = validData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+		retryCount = 0;
 		renderDashboard();
 	} catch (error) {
-		showUIState('error', `Failed to load: ${error.message}`);
+		console.error('Failed to fetch data:', error);
+
+		if (retryCount < MAX_RETRIES) {
+			retryCount++;
+			console.log(`Retrying in ${RETRY_DELAY / 1000}s (attempt ${retryCount}/${MAX_RETRIES})`);
+			showUIState('error', `Connection failed. Retrying... (${retryCount}/${MAX_RETRIES})`);
+			setTimeout(fetchData, RETRY_DELAY);
+		} else {
+			showUIState('error', `Failed to load data: ${error.message}. Please refresh the page.`);
+		}
 	}
 }
 
 // Data filtering
-const filterDataByTimeRange = (hours) =>
-	hours === 'all' ? allData : allData.filter((d) => new Date(d.timestamp) >= Date.now() - hours * 60 * 60 * 1000);
+const filterDataByTimeRange = (hours) => {
+	if (hours === 'all') return allData;
+	const cutoff = Date.now() - hours * 60 * 60 * 1000;
+	return allData.filter((d) => {
+		try {
+			return new Date(d.timestamp) >= cutoff;
+		} catch (e) {
+			console.warn('Invalid timestamp:', d.timestamp);
+			return false;
+		}
+	});
+};
 
 // UI State management
 function showUIState(state, message = '') {
@@ -179,6 +265,7 @@ function showUIState(state, message = '') {
 	DOMElements.content.style.display = 'none';
 	DOMElements.emptyState.style.display = 'none';
 	DOMElements.error.style.display = 'none';
+	DOMElements.mtrSection.style.display = 'none';
 
 	clearInterval(lastUpdatedInterval);
 
@@ -211,19 +298,28 @@ function showUIState(state, message = '') {
 
 function updateLastUpdated() {
 	if (allData.length > 0) {
-		const lastTimestamp = allData[allData.length - 1].timestamp;
-		DOMElements.lastUpdated.textContent = `Updated ${timeAgo(new Date(lastTimestamp))}`;
+		try {
+			const lastTimestamp = allData[allData.length - 1].timestamp;
+			DOMElements.lastUpdated.textContent = `Updated ${timeAgo(new Date(lastTimestamp))}`;
+		} catch (e) {
+			console.error('Error updating last updated time:', e);
+		}
 	}
 }
 
-// Rendering
+// Rendering functions
 function renderStats(data) {
+	if (!data || data.length === 0) {
+		DOMElements.statsGrid.innerHTML = '<p>No data to display</p>';
+		return;
+	}
+
 	const stats = {
-		download: calculateStatistics(data.map((d) => d.nq_download_mbps)),
-		upload: calculateStatistics(data.map((d) => d.nq_upload_mbps)),
-		latency: calculateStatistics(data.map((d) => d.ping_cf_rtt_avg)),
-		responsiveness: calculateStatistics(data.map((d) => d.nq_responsiveness)),
-		packetLoss: calculateStatistics(data.map((d) => d.ping_cf_packet_loss)),
+		download: calculateStatistics(data.map((d) => safeNumber(d.nq_download_mbps))),
+		upload: calculateStatistics(data.map((d) => safeNumber(d.nq_upload_mbps))),
+		latency: calculateStatistics(data.map((d) => safeNumber(d.ping_cf_rtt_avg))),
+		responsiveness: calculateStatistics(data.map((d) => safeNumber(d.nq_responsiveness_rpm))),
+		packetLoss: calculateStatistics(data.map((d) => safeNumber(d.ping_cf_packet_loss_percent))),
 		totalTests: { avg: data.length },
 	};
 
@@ -251,24 +347,33 @@ function renderStats(data) {
       </div>`;
 	};
 
-	DOMElements.statsGrid.innerHTML = Object.entries(stats).map(([key, data]) => statHTML(key, data)).join('');
+	const filteredStatKeys = ['download', 'upload', 'latency', 'responsiveness', 'packetLoss', 'totalTests'];
+	DOMElements.statsGrid.innerHTML = filteredStatKeys.map((key) => statHTML(key, stats[key])).join('');
 }
 
-
 function renderHighlights(data) {
-	const ttfbUS = calculateStatistics(data.map((d) => (d.curl_us_ttfb ? d.curl_us_ttfb * 1000 : null)));
-	const ttfbEU = calculateStatistics(data.map((d) => (d.curl_eu_ttfb ? d.curl_eu_ttfb * 1000 : null)));
-	const rttCF = calculateStatistics(data.map((d) => d.ping_cf_rtt_avg));
-	const rttGoogle = calculateStatistics(data.map((d) => d.ping_google_rtt_avg));
-	const dnsUS = calculateStatistics(data.map((d) => (d.curl_us_dns_lookup ? d.curl_us_dns_lookup * 1000 : null)));
-	const dnsEU = calculateStatistics(data.map((d) => (d.curl_eu_dns_lookup ? d.curl_eu_dns_lookup * 1000 : null)));
+	if (!data || data.length === 0) {
+		DOMElements.highlightsGrid.innerHTML = '';
+		return;
+	}
 
-	const comparison = (a, b, nameA, nameB, unit) => {
+	const ttfbUS = calculateStatistics(data.map((d) => (d.curl_us_ttfb_s ? safeNumber(d.curl_us_ttfb_s * 1000) : null)));
+	const ttfbEU = calculateStatistics(data.map((d) => (d.curl_eu_ttfb_s ? safeNumber(d.curl_eu_ttfb_s * 1000) : null)));
+	const rttCF = calculateStatistics(data.map((d) => safeNumber(d.ping_cf_rtt_avg)));
+	const rttGoogle = calculateStatistics(data.map((d) => safeNumber(d.ping_google_rtt_avg)));
+	const dnsCF = calculateStatistics(data.map((d) => safeNumber(d.dns_cf_query_time_ms)));
+	const dnsGoogle = calculateStatistics(data.map((d) => safeNumber(d.dns_google_query_time_ms)));
+
+	const comparison = (a, b, nameA, nameB) => {
 		if (a.avg === 'N/A' || b.avg === 'N/A') return 'N/A';
-		const faster = parseFloat(a.avg) < parseFloat(b.avg) ? nameA : nameB;
+		const avgA = parseFloat(a.avg);
+		const avgB = parseFloat(b.avg);
+		if (avgA === avgB) return `${nameA} and ${nameB} are similar.`;
+
+		const faster = avgA < avgB ? nameA : nameB;
 		const slower = faster === nameA ? nameB : nameA;
-		const diff = Math.abs(a.avg - b.avg);
-		const diffPercent = (diff / Math.min(a.avg, b.avg)) * 100;
+		const diff = Math.abs(avgA - avgB);
+		const diffPercent = (diff / Math.min(avgA, avgB)) * 100;
 
 		return `<span class="faster">${faster}</span> is <span class="slower">${diffPercent.toFixed(0)}%</span> faster than ${slower}.`;
 	};
@@ -282,29 +387,55 @@ function renderHighlights(data) {
 	`;
 
 	DOMElements.highlightsGrid.innerHTML = [
-		highlightHTML('Fastest Endpoint (TTFB)', comparison(ttfbUS, ttfbEU, 'US', 'EU', 'ms'), `US: ${ttfbUS.avg}ms vs EU: ${ttfbEU.avg}ms`),
-		highlightHTML('Fastest Ping (RTT)', comparison(rttCF, rttGoogle, 'Cloudflare', 'Google', 'ms'), `CF: ${rttCF.avg}ms vs Google: ${rttGoogle.avg}ms`),
-		highlightHTML('Fastest DNS Lookup', comparison(dnsUS, dnsEU, 'US', 'EU', 'ms'), `US: ${dnsUS.avg}ms vs EU: ${dnsEU.avg}ms`),
+		highlightHTML('Fastest Endpoint (TTFB)', comparison(ttfbUS, ttfbEU, 'US', 'EU'), `US: ${ttfbUS.avg}ms vs EU: ${ttfbEU.avg}ms`),
+		highlightHTML(
+			'Fastest Ping (RTT)',
+			comparison(rttCF, rttGoogle, 'Cloudflare', 'Google'),
+			`CF: ${rttCF.avg}ms vs Google: ${rttGoogle.avg}ms`
+		),
+		highlightHTML(
+			'Fastest DNS Lookup',
+			comparison(dnsCF, dnsGoogle, 'Cloudflare DNS', 'Google DNS'),
+			`CF: ${dnsCF.avg}ms vs Google: ${dnsGoogle.avg}ms`
+		),
 	].join('');
 }
 
 function createDataset(label, data, color, options = {}) {
+	// Filter out invalid data points
+	const validData = data.map((point) => ({
+		x: point.x,
+		y: isValidNumber(point.y) ? point.y : null,
+	}));
+
 	return {
 		label,
-		data,
+		data: validData,
 		borderColor: color,
 		backgroundColor: `${color}30`,
 		tension: 0.3,
-		fill: true,
+		fill: false,
 		pointRadius: 1.5,
 		pointHoverRadius: 4,
 		borderWidth: 1.5,
+		spanGaps: true, // Connect points even with null values
 		...options,
 	};
 }
 
 function renderCharts(data) {
-	Object.values(charts).forEach((chart) => chart.destroy());
+	if (!data || data.length === 0) {
+		console.warn('No data to render charts');
+		return;
+	}
+
+	Object.values(charts).forEach((chart) => {
+		try {
+			chart.destroy();
+		} catch (e) {
+			console.warn('Error destroying chart:', e);
+		}
+	});
 	charts = {};
 
 	const chartConfigs = {
@@ -314,17 +445,19 @@ function renderCharts(data) {
 				datasets: [
 					createDataset(
 						'NQ Download',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.nq_download_mbps })),
-						CHART_COLORS.primary
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_download_mbps) })),
+						CHART_COLORS.primary,
+						{ fill: true }
 					),
 					createDataset(
 						'NQ Upload',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.nq_upload_mbps })),
-						CHART_COLORS.secondary
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_upload_mbps) })),
+						CHART_COLORS.secondary,
+						{ fill: true }
 					),
 					createDataset(
 						'ST Download',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.st_download_mbps })),
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.st_download_mbps) })),
 						CHART_COLORS.senary,
 						{ borderDash: [5, 5], fill: false }
 					),
@@ -343,24 +476,82 @@ function renderCharts(data) {
 			data: {
 				datasets: [
 					createDataset(
-						'Cloudflare RTT',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_cf_rtt_avg })),
+						'Cloudflare RTT Avg',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_avg) })),
 						CHART_COLORS.tertiary
 					),
 					createDataset(
-						'Google RTT',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_google_rtt_avg })),
+						'Cloudflare RTT Min',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_min) })),
+						CHART_COLORS.tertiary,
+						{
+							fill: '-1',
+							backgroundColor: `${CHART_COLORS.tertiary}1A`,
+							borderColor: 'transparent',
+							pointRadius: 0,
+							pointHoverRadius: 0,
+							tension: 0.4,
+						}
+					),
+					createDataset(
+						'Cloudflare RTT Max',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_max) })),
+						CHART_COLORS.tertiary,
+						{
+							fill: '1',
+							backgroundColor: `${CHART_COLORS.tertiary}1A`,
+							borderColor: 'transparent',
+							pointRadius: 0,
+							pointHoverRadius: 0,
+							tension: 0.4,
+						}
+					),
+					createDataset(
+						'Google RTT Avg',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_avg) })),
 						CHART_COLORS.quaternary
 					),
 					createDataset(
+						'Google RTT Min',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_min) })),
+						CHART_COLORS.quaternary,
+						{
+							fill: '-1',
+							backgroundColor: `${CHART_COLORS.quaternary}1A`,
+							borderColor: 'transparent',
+							pointRadius: 0,
+							pointHoverRadius: 0,
+							tension: 0.4,
+						}
+					),
+					createDataset(
+						'Google RTT Max',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_max) })),
+						CHART_COLORS.quaternary,
+						{
+							fill: '1',
+							backgroundColor: `${CHART_COLORS.quaternary}1A`,
+							borderColor: 'transparent',
+							pointRadius: 0,
+							pointHoverRadius: 0,
+							tension: 0.4,
+						}
+					),
+					createDataset(
 						'US TTFB',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.curl_us_ttfb ? d.curl_us_ttfb * 1000 : null })),
+						data.map((d) => ({
+							x: new Date(d.timestamp),
+							y: d.curl_us_ttfb_s ? safeNumber(d.curl_us_ttfb_s * 1000) : null,
+						})),
 						CHART_COLORS.quinary,
 						{ fill: false, borderDash: [5, 5] }
 					),
 					createDataset(
 						'EU TTFB',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.curl_eu_ttfb ? d.curl_eu_ttfb * 1000 : null })),
+						data.map((d) => ({
+							x: new Date(d.timestamp),
+							y: d.curl_eu_ttfb_s ? safeNumber(d.curl_eu_ttfb_s * 1000) : null,
+						})),
 						CHART_COLORS.senary,
 						{ fill: false, borderDash: [5, 5] }
 					),
@@ -368,7 +559,10 @@ function renderCharts(data) {
 			},
 			options: {
 				...commonOptions,
-				scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } } },
+				scales: {
+					...commonOptions.scales,
+					y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } },
+				},
 			},
 		},
 		responsivenessChart: {
@@ -377,7 +571,7 @@ function renderCharts(data) {
 				datasets: [
 					{
 						label: 'RPM',
-						data: data.map((d) => ({ x: new Date(d.timestamp), y: d.nq_responsiveness })),
+						data: data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_responsiveness_rpm) })),
 						backgroundColor: `${CHART_COLORS.primary}CC`,
 						borderColor: CHART_COLORS.primary,
 						borderWidth: 1,
@@ -398,12 +592,12 @@ function renderCharts(data) {
 				datasets: [
 					createDataset(
 						'Cloudflare Loss',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_cf_packet_loss })),
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_packet_loss_percent) })),
 						CHART_COLORS.tertiary
 					),
 					createDataset(
 						'Google Loss',
-						data.map((d) => ({ x: new Date(d.timestamp), y: d.ping_google_packet_loss })),
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_packet_loss_percent) })),
 						CHART_COLORS.quaternary
 					),
 				],
@@ -421,26 +615,23 @@ function renderCharts(data) {
 			data: {
 				datasets: [
 					createDataset(
-						'US DNS',
-						data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.curl_us_dns_lookup ? d.curl_us_dns_lookup * 1000 : null,
-						})),
+						'Cloudflare DNS',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.dns_cf_query_time_ms) })),
 						CHART_COLORS.quinary
 					),
 					createDataset(
-						'EU DNS',
-						data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.curl_eu_dns_lookup ? d.curl_eu_dns_lookup * 1000 : null,
-						})),
+						'Google DNS',
+						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.dns_google_query_time_ms) })),
 						CHART_COLORS.senary
 					),
 				],
 			},
 			options: {
 				...commonOptions,
-				scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } } },
+				scales: {
+					...commonOptions.scales,
+					y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } },
+				},
 			},
 		},
 	};
@@ -448,48 +639,162 @@ function renderCharts(data) {
 	for (const [id, config] of Object.entries(chartConfigs)) {
 		const ctx = document.getElementById(id);
 		if (ctx) {
-			charts[id] = new Chart(ctx, config);
+			try {
+				charts[id] = new Chart(ctx, config);
+			} catch (e) {
+				console.error(`Error creating chart ${id}:`, e);
+			}
 		}
 	}
 }
 
-function renderDashboard() {
-	const filteredData = filterDataByTimeRange(currentTimeRange);
-	if (filteredData.length === 0) {
-		showUIState('empty');
+function renderMtrTable(data) {
+	if (!data || data.length === 0) {
+		DOMElements.mtrSection.style.display = 'none';
+		document.getElementById('mtr-google-section').style.display = 'none';
 		return;
 	}
 
-	showUIState('content');
-	renderStats(filteredData);
-	renderHighlights(filteredData);
-	renderCharts(filteredData);
+	const latestEntry = data[data.length - 1];
+
+	// Render Cloudflare MTR
+	DOMElements.mtrSection.style.display = 'block';
+	let mtrHopsCF = [];
+
+	try {
+		if (latestEntry.mtr_cloudflare_hops) {
+			mtrHopsCF = JSON.parse(latestEntry.mtr_cloudflare_hops);
+		}
+	} catch (e) {
+		console.error('Error parsing Cloudflare MTR hops:', e);
+		DOMElements.mtrTableContainer.innerHTML = `<p class="chart-description">MTR data parsing failed.</p>`;
+	}
+
+	if (mtrHopsCF.length === 0 || (mtrHopsCF[0] && mtrHopsCF[0].error === 'failed')) {
+		DOMElements.mtrTableContainer.innerHTML = `<p class="chart-description">MTR data not available or test failed.</p>`;
+	} else {
+		DOMElements.mtrTableContainer.innerHTML = generateMtrTableHTML(mtrHopsCF);
+	}
+
+	// Render Google MTR
+	const mtrGoogleSection = document.getElementById('mtr-google-section');
+	const mtrGoogleContainer = document.getElementById('mtrGoogleTableContainer');
+
+	if (!mtrGoogleSection || !mtrGoogleContainer) return;
+
+	mtrGoogleSection.style.display = 'block';
+	let mtrHopsGoogle = [];
+
+	try {
+		if (latestEntry.mtr_google_hops) {
+			mtrHopsGoogle = JSON.parse(latestEntry.mtr_google_hops);
+		}
+	} catch (e) {
+		console.error('Error parsing Google MTR hops:', e);
+		mtrGoogleContainer.innerHTML = `<p class="chart-description">MTR data parsing failed.</p>`;
+		return;
+	}
+
+	if (mtrHopsGoogle.length === 0 || (mtrHopsGoogle[0] && mtrHopsGoogle[0].error === 'failed')) {
+		mtrGoogleContainer.innerHTML = `<p class="chart-description">MTR data not available or test failed.</p>`;
+	} else {
+		mtrGoogleContainer.innerHTML = generateMtrTableHTML(mtrHopsGoogle);
+	}
+}
+
+function generateMtrTableHTML(hops) {
+	let tableHTML = `
+        <table class="mtr-table">
+            <thead>
+                <tr>
+                    <th>Hop</th>
+                    <th>Host</th>
+                    <th>Loss %</th>
+                    <th>Sent</th>
+                    <th>Last (ms)</th>
+                    <th>Avg (ms)</th>
+                    <th>Best (ms)</th>
+                    <th>Worst (ms)</th>
+                    <th>StdDev</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+	hops.forEach((hop) => {
+		const lossPercent = safeNumber(hop.loss_percent, 0);
+		const lossClass = lossPercent > 10 ? 'loss-high' : lossPercent > 0 ? 'loss-medium' : '';
+		tableHTML += `
+            <tr>
+                <td>${hop.count || hop.hop || 'N/A'}</td>
+                <td>${hop.host || 'N/A'}</td>
+                <td class="${lossClass}">${lossPercent.toFixed(1)}%</td>
+                <td>${hop.sent || 'N/A'}</td>
+                <td>${safeNumber(hop.last_ms, 0).toFixed(1)}</td>
+                <td>${safeNumber(hop.avg_ms, 0).toFixed(1)}</td>
+                <td>${safeNumber(hop.best_ms, 0).toFixed(1)}</td>
+                <td>${safeNumber(hop.worst_ms, 0).toFixed(1)}</td>
+                <td>${safeNumber(hop.stddev, 0).toFixed(1)}</td>
+            </tr>
+        `;
+	});
+
+	tableHTML += `
+            </tbody>
+        </table>
+    `;
+	return tableHTML;
+}
+
+function renderDashboard() {
+	try {
+		const filteredData = filterDataByTimeRange(currentTimeRange);
+		if (filteredData.length === 0) {
+			showUIState('empty');
+			return;
+		}
+
+		showUIState('content');
+		renderStats(filteredData);
+		renderHighlights(filteredData);
+		renderCharts(filteredData);
+		renderMtrTable(filteredData);
+	} catch (e) {
+		console.error('Error rendering dashboard:', e);
+		showUIState('error', 'Failed to render dashboard. Please try refreshing.');
+	}
 }
 
 // Tooltips
 function initializeTooltips() {
-    for (const [triggerId, content] of Object.entries(TOOLTIP_CONTENT)) {
-        const trigger = document.getElementById(triggerId);
-        if (!trigger) continue;
+	for (const [triggerId, content] of Object.entries(TOOLTIP_CONTENT)) {
+		const trigger = document.getElementById(triggerId);
+		if (!trigger) continue;
 
-        const tooltip = document.createElement('div');
-        tooltip.className = 'tooltip';
-        tooltip.textContent = content;
-        tooltip.style.visibility = 'hidden';
-        tooltip.style.opacity = '0';
+		const tooltip = document.createElement('div');
+		tooltip.className = 'tooltip';
+		tooltip.textContent = content;
+		tooltip.style.visibility = 'hidden';
+		tooltip.style.opacity = '0';
 
-        trigger.parentNode.appendChild(tooltip);
+		trigger.parentNode.appendChild(tooltip);
 
-        trigger.addEventListener('mouseenter', () => {
-            tooltip.style.visibility = 'visible';
-            tooltip.style.opacity = '1';
-        });
+		trigger.addEventListener('mouseenter', () => {
+			const triggerRect = trigger.getBoundingClientRect();
+			const parentRect = trigger.parentNode.getBoundingClientRect();
 
-        trigger.addEventListener('mouseleave', () => {
-            tooltip.style.visibility = 'hidden';
-            tooltip.style.opacity = '0';
-        });
-    }
+			tooltip.style.left = `${triggerRect.left - parentRect.left + triggerRect.width / 2}px`;
+			tooltip.style.top = `${triggerRect.top - parentRect.top - tooltip.offsetHeight - 10}px`;
+
+			tooltip.style.visibility = 'visible';
+			tooltip.style.opacity = '1';
+		});
+
+		trigger.addEventListener('mouseleave', () => {
+			tooltip.style.visibility = 'hidden';
+			tooltip.style.opacity = '0';
+		});
+	}
 }
 
 // Event Listeners

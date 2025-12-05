@@ -4,7 +4,7 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Network Quality Monitoring</title>
-		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -119,58 +119,82 @@
 						<canvas id="dnsChart"></canvas>
 					</div>
 				</div>
+
+				<!-- MTR Table Section -->
+				<div id="mtr-section" class="chart-container" style="display: none; margin-top: 1.5rem">
+					<div class="chart-header">
+						<h2 class="chart-title">Network Path Analysis (MTR) - Cloudflare</h2>
+						<p class="chart-description">Full trace to Cloudflare (1.1.1.1), showing latency and loss at each network hop.</p>
+					</div>
+					<div id="mtrTableContainer"></div>
+				</div>
+
+				<!-- MTR Table Section for Google -->
+				<div id="mtr-google-section" class="chart-container" style="display: none; margin-top: 1.5rem">
+					<div class="chart-header">
+						<h2 class="chart-title">Network Path Analysis (MTR) - Google</h2>
+						<p class="chart-description">Full trace to Google (8.8.8.8), showing latency and loss at each network hop.</p>
+					</div>
+					<div id="mtrGoogleTableContainer"></div>
+				</div>
 			</div>
 		</div>
 
 		<div class="container methodology-section">
 			<h2 class="section-title">Methodology</h2>
 			<p class="section-description">
-				The data for this dashboard is collected using a local script that runs a series of tests against various endpoints. The
-				following tools and methodologies are used:
+				The data for this dashboard is collected using a
+				<a
+					href="https://github.com/DavidJKTofan/cf-internet-speed-visualizer/blob/main/local_script/isp-speed.sh"
+					target="_blank"
+					rel="noreferrer noopener"
+					>local script</a
+				>
+				that runs a series of tests against various endpoints. The following tools and methodologies are used:
 			</p>
 			<div class="methodology-grid">
 				<div class="methodology-card">
 					<h3>NetworkQuality</h3>
-					<p>
-						Apple's built-in command-line tool on macOS to measure network quality. It measures uplink/downlink capacity and
-						responsiveness (RPM).
-					</p>
-					<pre><code>networkQuality -s</code></pre>
-				</div>
-				<div class="methodology-card">
-					<h3>Ping (ICMP)</h3>
-					<p>Standard ICMP pings are sent to measure round-trip time (RTT) and packet loss.</p>
-					<ul>
-						<li>
-							<strong>Cloudflare:</strong>
-							<code>ping -c 10 1.1.1.1</code>
-						</li>
-						<li>
-							<strong>Google:</strong>
-							<code>ping -c 10 8.8.8.8</code>
-						</li>
-					</ul>
-				</div>
-				<div class="methodology-card">
-					<h3>cURL</h3>
-					<p>
-						Time to First Byte (TTFB) and DNS lookup times are measured using cURL against geographically distributed endpoints.
-					</p>
-					<ul>
-						<li>
-							<strong>US Endpoint:</strong>
-							<code>us.dlsdemo.com</code>
-						</li>
-						<li>
-							<strong>EU Endpoint:</strong>
-							<code>eu.dlsdemo.com</code>
-						</li>
-					</ul>
+					<p>Apple's tool to measure uplink/downlink capacity and responsiveness (RPM) in a computer-readable format.</p>
+					<pre><code>networkQuality -c | plutil -convert json -</code></pre>
 				</div>
 				<div class="methodology-card">
 					<h3>Speedtest CLI</h3>
-					<p>The official Ookla Speedtest CLI is used to measure download and upload bandwidth against the Speedtest.net network.</p>
+					<p>The official Ookla Speedtest CLI for bandwidth measurements against the Speedtest.net network.</p>
 					<pre><code>speedtest --format=json</code></pre>
+				</div>
+				<div class="methodology-card">
+					<h3>Ping (ICMP)</h3>
+					<p>Standard ICMP pings measure round-trip time (RTT) and packet loss to key infrastructure.</p>
+					<ul>
+						<li><strong>Cloudflare:</strong> <code>ping -c 10 1.1.1.1</code></li>
+						<li><strong>Google:</strong> <code>ping -c 10 8.8.8.8</code></li>
+					</ul>
+				</div>
+				<div class="methodology-card">
+					<h3>MTR</h3>
+					<p>My Traceroute (mtr) combines traceroute and ping to diagnose network path performance hop-by-hop.</p>
+					<ul>
+						<li><strong>Cloudflare:</strong> <code>sudo mtr --json -n -c 5 1.1.1.1</code></li>
+						<li><strong>Google:</strong> <code>sudo mtr --json -n -c 5 8.8.8.8</code></li>
+					</ul>
+				</div>
+				<div class="methodology-card">
+					<h3>Dig</h3>
+					<p>Direct DNS lookup timing tests against major resolvers using the Domain Information Groper tool.</p>
+					<ul>
+						<li><strong>Cloudflare:</strong> <code>dig cloudflare.com @1.1.1.1</code></li>
+						<li><strong>Google:</strong> <code>dig google.com @8.8.8.8</code></li>
+					</ul>
+				</div>
+
+				<div class="methodology-card">
+					<h3>cURL</h3>
+					<p>Time to First Byte (TTFB) is measured against geographically distributed endpoints.</p>
+					<ul>
+						<li><strong>US Endpoint:</strong> <code>us.dlsdemo.com</code></li>
+						<li><strong>EU Endpoint:</strong> <code>eu.dlsdemo.com</code></li>
+					</ul>
 				</div>
 			</div>
 		</div>
@@ -184,13 +208,7 @@
 						rel="noopener noreferrer"
 						class="footer-link"
 					>
-						<svg
-							class="footer-icon"
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 16 16"
-							fill="currentColor"
-							aria-hidden="true"
-						>
+						<svg class="footer-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
 							<path
 								d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
 							></path>
@@ -199,8 +217,7 @@
 					</a>
 				</div>
 				<div class="footer-disclaimer">
-					Metrics are collected from local measurements and may not reflect actual ISP guarantees. Data is for informational purposes
-					only.
+					Metrics are collected from local measurements and may not reflect actual ISP guarantees. Data is for informational purposes only.
 				</div>
 			</div>
 		</div>
