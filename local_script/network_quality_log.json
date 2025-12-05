@@ -313,5 +313,50 @@
       "upload_mbps": 19.87,
       "ping_ms": 10.596
     }
+  },
+  {
+    "timestamp": "2025-12-05T02:48:19+0100",
+    "networkquality": {
+      "download_mbps": 52,
+      "upload_mbps": 18,
+      "responsiveness": 54
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 13.891,
+        "rtt_avg": 22.999,
+        "rtt_max": 37.598,
+        "rtt_stddev": 6.070
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 12.110,
+        "rtt_avg": 18.607,
+        "rtt_max": 25.001,
+        "rtt_stddev": 2.906
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.049851,
+        "ttfb": 0.425940,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.047829,
+        "ttfb": 0.159248,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 58.63,
+      "upload_mbps": 19.91,
+      "ping_ms": 9.644
+    }
   }
 ]

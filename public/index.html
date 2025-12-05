@@ -5,6 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Network Quality Monitoring</title>
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="stylesheet" href="styles.css" />
 	</head>
 	<body>
@@ -14,9 +15,12 @@
 					<div class="logo-icon">N</div>
 					<h1>Network Quality Monitoring</h1>
 				</div>
-				<div class="status-badge" id="statusBadge">
-					<span class="status-dot"></span>
-					<span id="statusText">Live</span>
+				<div class="header-meta">
+					<div class="status-badge" id="statusBadge">
+						<span class="status-dot"></span>
+						<span id="statusText">Live</span>
+					</div>
+					<div class="last-updated" id="lastUpdated"></div>
 				</div>
 			</div>
 		</div>
@@ -36,8 +40,7 @@
 				<div class="empty-icon">📊</div>
 				<div class="empty-title">No Data Available</div>
 				<div class="empty-message">
-					Start collecting network quality metrics by running the bash script on your macOS device. Data will appear here once your first
-					measurement is uploaded.
+					Run the local script to start collecting metrics. Data will appear here once measurements are uploaded.
 				</div>
 			</div>
 
@@ -54,161 +57,65 @@
 					</div>
 				</div>
 
+				<div class="highlights-grid" id="highlightsGrid"></div>
+
 				<div class="stats-grid" id="statsGrid"></div>
 
-				<div class="chart-container">
-					<div class="chart-header">
-						<div class="chart-title">Throughput Analysis: Download vs Upload Performance</div>
-						<div class="chart-description">
-							Measures sustained data transfer rates using macOS NetworkQuality tool (Apple's RPM standard) and Ookla Speedtest CLI.
-							Download represents inbound capacity; upload represents outbound capacity. Variability indicates congestion, throttling, or
-							infrastructure limitations. Sustained performance degradation may signal ISP issues or local network constraints.
+				<div class="charts-grid">
+					<div class="chart-container">
+						<div class="chart-header">
+							<div class="chart-title-container">
+								<h2 class="chart-title">Throughput Analysis</h2>
+								<div class="tooltip-trigger" id="throughput-tooltip-trigger">?</div>
+							</div>
+							<p class="chart-description">Download and upload rates from NetworkQuality and Speedtest.</p>
 						</div>
-						<div class="metric-legend">
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #3b82f6"></div>
-								<div class="metric-content">
-									<div class="metric-name">NetworkQuality Download</div>
-									<div class="metric-desc">Apple's RPM protocol, working conditions</div>
-								</div>
-							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #8b5cf6"></div>
-								<div class="metric-content">
-									<div class="metric-name">NetworkQuality Upload</div>
-									<div class="metric-desc">Outbound capacity under load</div>
-								</div>
-							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #f59e0b"></div>
-								<div class="metric-content">
-									<div class="metric-name">Speedtest Download</div>
-									<div class="metric-desc">Ookla benchmark, maximum burst speed</div>
-								</div>
-							</div>
-						</div>
+						<canvas id="speedChart"></canvas>
 					</div>
-					<canvas id="speedChart"></canvas>
-				</div>
 
-				<div class="chart-container">
-					<div class="chart-header">
-						<div class="chart-title">Latency Distribution: ICMP vs HTTP Response Times</div>
-						<div class="chart-description">
-							Round-trip time (RTT) measures network delay to infrastructure endpoints (Cloudflare 1.1.1.1, Google 8.8.8.8). Time to First
-							Byte (TTFB) includes DNS lookup + TCP handshake + server processing + initial response. Elevated latency indicates routing
-							inefficiency, distance to endpoint, or packet loss. Geographic proximity affects baseline values.
+					<div class="chart-container">
+						<div class="chart-header">
+							<div class="chart-title-container">
+								<h2 class="chart-title">Latency Distribution</h2>
+								<div class="tooltip-trigger" id="latency-tooltip-trigger">?</div>
+							</div>
+							<p class="chart-description">Round-trip and TTFB latency to key infrastructure endpoints.</p>
 						</div>
-						<div class="metric-legend">
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #06b6d4"></div>
-								<div class="metric-content">
-									<div class="metric-name">Cloudflare RTT (ICMP)</div>
-									<div class="metric-desc">Ping to 1.1.1.1, 10-packet average</div>
-								</div>
-							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #10b981"></div>
-								<div class="metric-content">
-									<div class="metric-name">Google RTT (ICMP)</div>
-									<div class="metric-desc">Ping to 8.8.8.8, 10-packet average</div>
-								</div>
-							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #ec4899"></div>
-								<div class="metric-content">
-									<div class="metric-name">US Endpoint TTFB</div>
-									<div class="metric-desc">HTTP GET to us.dlsdemo.com</div>
-								</div>
-							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #f59e0b"></div>
-								<div class="metric-content">
-									<div class="metric-name">EU Endpoint TTFB</div>
-									<div class="metric-desc">HTTP GET to eu.dlsdemo.com</div>
-								</div>
-							</div>
-						</div>
+						<canvas id="latencyChart"></canvas>
 					</div>
-					<canvas id="latencyChart"></canvas>
-				</div>
 
-				<div class="chart-container">
-					<div class="chart-header">
-						<div class="chart-title">Network Responsiveness: Real-World Application Performance</div>
-						<div class="chart-description">
-							Apple's Responsiveness Per Minute (RPM) metric quantifies network quality under loaded conditions by measuring round-trips per
-							minute during active data transfer. Higher RPM indicates better interactive application performance (video calls, gaming,
-							browsing). Values below 100 RPM suggest congestion; above 500 RPM indicates excellent responsiveness. This metric correlates
-							with subjective user experience better than raw throughput alone.
-						</div>
-						<div class="metric-legend">
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #3b82f6"></div>
-								<div class="metric-content">
-									<div class="metric-name">Responsiveness (RPM)</div>
-									<div class="metric-desc">Working conditions performance metric</div>
-								</div>
+					<div class="chart-container">
+						<div class="chart-header">
+							<div class="chart-title-container">
+								<h2 class="chart-title">Network Responsiveness</h2>
+								<div class="tooltip-trigger" id="responsiveness-tooltip-trigger">?</div>
 							</div>
+							<p class="chart-description">Apple's RPM metric for real-world application performance.</p>
 						</div>
+						<canvas id="responsivenessChart"></canvas>
 					</div>
-					<canvas id="responsivenessChart"></canvas>
-				</div>
 
-				<div class="chart-container">
-					<div class="chart-header">
-						<div class="chart-title">Packet Loss Rate: Network Reliability Indicator</div>
-						<div class="chart-description">
-							Percentage of ICMP packets lost during transmission to infrastructure endpoints. Packet loss directly impacts connection
-							quality, causing retransmissions and degraded performance. Values above 1% indicate issues; above 5% suggest severe network
-							problems. Intermittent loss patterns may reveal congestion windows or routing instability.
-						</div>
-						<div class="metric-legend">
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #06b6d4"></div>
-								<div class="metric-content">
-									<div class="metric-name">Cloudflare Loss</div>
-									<div class="metric-desc">Packet loss to 1.1.1.1</div>
-								</div>
+					<div class="chart-container">
+						<div class="chart-header">
+							<div class="chart-title-container">
+								<h2 class="chart-title">Packet Loss Rate</h2>
+								<div class="tooltip-trigger" id="packet-loss-tooltip-trigger">?</div>
 							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #10b981"></div>
-								<div class="metric-content">
-									<div class="metric-name">Google Loss</div>
-									<div class="metric-desc">Packet loss to 8.8.8.8</div>
-								</div>
-							</div>
+							<p class="chart-description">Percentage of ICMP packets lost during transmission.</p>
 						</div>
+						<canvas id="packetLossChart"></canvas>
 					</div>
-					<canvas id="packetLossChart"></canvas>
-				</div>
 
-				<div class="chart-container">
-					<div class="chart-header">
-						<div class="chart-title">DNS Resolution Performance: Query Response Time</div>
-						<div class="chart-description">
-							DNS lookup duration measures the time required to resolve domain names to IP addresses. This is the first step in any HTTP
-							request and directly impacts perceived website load times. Values above 100ms suggest DNS server issues or resolver
-							inefficiency. Consistent patterns may indicate caching behavior or geographic DNS optimization.
-						</div>
-						<div class="metric-legend">
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #ec4899"></div>
-								<div class="metric-content">
-									<div class="metric-name">US DNS Lookup</div>
-									<div class="metric-desc">Resolution time for us.dlsdemo.com</div>
-								</div>
+					<div class="chart-container">
+						<div class="chart-header">
+							<div class="chart-title-container">
+								<h2 class="chart-title">DNS Resolution</h2>
+								<div class="tooltip-trigger" id="dns-tooltip-trigger">?</div>
 							</div>
-							<div class="metric-item">
-								<div class="metric-bullet" style="background: #f59e0b"></div>
-								<div class="metric-content">
-									<div class="metric-name">EU DNS Lookup</div>
-									<div class="metric-desc">Resolution time for eu.dlsdemo.com</div>
-								</div>
-							</div>
+							<p class="chart-description">Time to resolve domain names to IP addresses for key domains.</p>
 						</div>
+						<canvas id="dnsChart"></canvas>
 					</div>
-					<canvas id="dnsChart"></canvas>
 				</div>
 			</div>
 		</div>
@@ -216,10 +123,7 @@
 		<div class="footer">
 			<div class="footer-content">
 				<div class="footer-disclaimer">
-					This dashboard is provided for educational and informational purposes only. Network performance metrics are collected from local
-					measurements and may not reflect actual service provider guarantees or contractual obligations. Data should be interpreted within
-					the context of testing methodology, time of day, network conditions, and endpoint infrastructure. No warranties or representations
-					are made regarding accuracy, reliability, or suitability for any specific purpose. Use at your own discretion.
+					Metrics are collected from local measurements and may not reflect actual ISP guarantees. Data is for informational purposes only.
 				</div>
 			</div>
 		</div>
