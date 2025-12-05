@@ -158,29 +158,49 @@ function calculateStatistics(values) {
 	};
 }
 
-// Data validation
+// Data validation - Updated to match D1 flat structure
 function isValidLogEntry(entry) {
 	if (!entry || typeof entry !== 'object') return false;
 	if (typeof entry.timestamp !== 'string') return false;
-	if (!entry.networkquality || typeof entry.networkquality !== 'object') return false;
-	if (!entry.ping || typeof entry.ping !== 'object') return false;
-	if (!entry.curl || typeof entry.curl !== 'object') return false;
+	// D1 returns flat structure, not nested objects
 	return true;
 }
 
 function sanitizeLogEntry(entry) {
-	// Ensure all numeric fields are valid numbers or null
+	// D1 returns flat structure - ensure all numeric fields are valid
 	const sanitized = { ...entry };
 
-	if (sanitized.nq_download_mbps !== null && sanitized.nq_download_mbps !== undefined) {
-		sanitized.nq_download_mbps = safeNumber(parseFloat(sanitized.nq_download_mbps));
-	}
-	if (sanitized.nq_upload_mbps !== null && sanitized.nq_upload_mbps !== undefined) {
-		sanitized.nq_upload_mbps = safeNumber(parseFloat(sanitized.nq_upload_mbps));
-	}
-	if (sanitized.ping_cf_rtt_avg !== null && sanitized.ping_cf_rtt_avg !== undefined) {
-		sanitized.ping_cf_rtt_avg = safeNumber(parseFloat(sanitized.ping_cf_rtt_avg));
-	}
+	// Convert all numeric fields
+	const numericFields = [
+		'nq_download_mbps',
+		'nq_upload_mbps',
+		'nq_responsiveness_rpm',
+		'ping_cf_packet_loss_percent',
+		'ping_cf_rtt_avg',
+		'ping_cf_rtt_min',
+		'ping_cf_rtt_max',
+		'ping_cf_rtt_stddev',
+		'ping_google_packet_loss_percent',
+		'ping_google_rtt_avg',
+		'ping_google_rtt_min',
+		'ping_google_rtt_max',
+		'ping_google_rtt_stddev',
+		'curl_us_dns_lookup_s',
+		'curl_us_ttfb_s',
+		'curl_eu_dns_lookup_s',
+		'curl_eu_ttfb_s',
+		'st_download_mbps',
+		'st_upload_mbps',
+		'st_ping_ms',
+		'dns_cf_query_time_ms',
+		'dns_google_query_time_ms',
+	];
+
+	numericFields.forEach((field) => {
+		if (sanitized[field] !== null && sanitized[field] !== undefined) {
+			sanitized[field] = safeNumber(parseFloat(sanitized[field]));
+		}
+	});
 
 	return sanitized;
 }
@@ -418,7 +438,7 @@ function createDataset(label, data, color, options = {}) {
 		pointRadius: 1.5,
 		pointHoverRadius: 4,
 		borderWidth: 1.5,
-		spanGaps: true, // Connect points even with null values
+		spanGaps: true,
 		...options,
 	};
 }
