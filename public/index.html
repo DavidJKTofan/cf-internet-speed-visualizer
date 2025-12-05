@@ -4,6 +4,10 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Network Quality Monitoring</title>
+		<meta
+			name="description"
+			content="Real-time network performance monitoring dashboard with comprehensive metrics including throughput, latency, packet loss, DNS resolution, and network path analysis."
+		/>
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -123,8 +127,16 @@
 				<!-- MTR Table Section -->
 				<div id="mtr-section" class="chart-container" style="display: none; margin-top: 1.5rem">
 					<div class="chart-header">
-						<h2 class="chart-title">Network Path Analysis (MTR) - Cloudflare</h2>
+						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
+							<h2 class="chart-title">Network Path Analysis (MTR) - Cloudflare</h2>
+							<div class="control-group" style="margin: 0">
+								<select id="mtrSelector" style="font-size: 0.8125rem; padding: 0.375rem 1.5rem 0.375rem 0.5rem">
+									<option value="0">Latest</option>
+								</select>
+							</div>
+						</div>
 						<p class="chart-description">Full trace to Cloudflare (1.1.1.1), showing latency and loss at each network hop.</p>
+						<p id="mtrTimestamp" class="chart-description" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem"></p>
 					</div>
 					<div id="mtrTableContainer"></div>
 				</div>
@@ -143,57 +155,59 @@
 		<div class="container methodology-section">
 			<h2 class="section-title">Methodology</h2>
 			<p class="section-description">
-				The data for this dashboard is collected using a
+				Data is collected using a
 				<a
 					href="https://github.com/DavidJKTofan/cf-internet-speed-visualizer/blob/main/local_script/isp-speed.sh"
 					target="_blank"
 					rel="noreferrer noopener"
 					>local script</a
 				>
-				that runs a series of tests against various endpoints. The following tools and methodologies are used:
+				that runs comprehensive tests against multiple endpoints. All measurements are performed from the client's network location.
 			</p>
 			<div class="methodology-grid">
 				<div class="methodology-card">
 					<h3>NetworkQuality</h3>
-					<p>Apple's tool to measure uplink/downlink capacity and responsiveness (RPM) in a computer-readable format.</p>
-					<pre><code>networkQuality -c | plutil -convert json -</code></pre>
+					<p>Apple's tool to measure uplink/downlink capacity and responsiveness (RPM) under load conditions.</p>
+					<pre><code>networkQuality -c</code></pre>
 				</div>
 				<div class="methodology-card">
 					<h3>Speedtest CLI</h3>
-					<p>The official Ookla Speedtest CLI for bandwidth measurements against the Speedtest.net network.</p>
+					<p>Ookla's official CLI for bandwidth measurements against the global Speedtest.net network.</p>
 					<pre><code>speedtest --format=json</code></pre>
 				</div>
 				<div class="methodology-card">
 					<h3>Ping (ICMP)</h3>
-					<p>Standard ICMP pings measure round-trip time (RTT) and packet loss to key infrastructure.</p>
+					<p>Standard ICMP echo requests measure round-trip time (RTT), jitter, and packet loss to infrastructure endpoints.</p>
 					<ul>
 						<li><strong>Cloudflare:</strong> <code>ping -c 10 1.1.1.1</code></li>
 						<li><strong>Google:</strong> <code>ping -c 10 8.8.8.8</code></li>
 					</ul>
 				</div>
 				<div class="methodology-card">
-					<h3>MTR</h3>
-					<p>My Traceroute (mtr) combines traceroute and ping to diagnose network path performance hop-by-hop.</p>
+					<h3>MTR (My Traceroute)</h3>
+					<p>
+						Combines traceroute and ping to diagnose network path performance hop-by-hop, revealing routing issues and congestion points.
+					</p>
 					<ul>
 						<li><strong>Cloudflare:</strong> <code>sudo mtr --json -n -c 5 1.1.1.1</code></li>
 						<li><strong>Google:</strong> <code>sudo mtr --json -n -c 5 8.8.8.8</code></li>
 					</ul>
 				</div>
 				<div class="methodology-card">
-					<h3>Dig</h3>
-					<p>Direct DNS lookup timing tests against major resolvers using the Domain Information Groper tool.</p>
+					<h3>Dig (DNS Lookup)</h3>
+					<p>Direct DNS query timing tests against major resolvers using the Domain Information Groper tool.</p>
 					<ul>
-						<li><strong>Cloudflare:</strong> <code>dig cloudflare.com @1.1.1.1</code></li>
-						<li><strong>Google:</strong> <code>dig google.com @8.8.8.8</code></li>
+						<li><strong>Cloudflare DNS:</strong> <code>dig cloudflare.com @1.1.1.1 +stats</code></li>
+						<li><strong>Google DNS:</strong> <code>dig google.com @8.8.8.8 +stats</code></li>
 					</ul>
 				</div>
 
 				<div class="methodology-card">
-					<h3>cURL</h3>
-					<p>Time to First Byte (TTFB) is measured against geographically distributed endpoints.</p>
+					<h3>cURL (TTFB)</h3>
+					<p>Time to First Byte (TTFB) is measured against geographically distributed endpoints to assess global connectivity.</p>
 					<ul>
-						<li><strong>US Endpoint:</strong> <code>us.dlsdemo.com</code></li>
-						<li><strong>EU Endpoint:</strong> <code>eu.dlsdemo.com</code></li>
+						<li><strong>US Endpoint:</strong> <code>curl -w "%{time_starttransfer}" https://us.dlsdemo.com</code></li>
+						<li><strong>EU Endpoint:</strong> <code>curl -w "%{time_starttransfer}" https://eu.dlsdemo.com</code></li>
 					</ul>
 				</div>
 			</div>
@@ -217,7 +231,8 @@
 					</a>
 				</div>
 				<div class="footer-disclaimer">
-					Metrics are collected from local measurements and may not reflect actual ISP guarantees. Data is for informational purposes only.
+					Metrics are collected from local measurements and may not reflect actual ISP guarantees. <br>Data is for informational and diagnostic
+					purposes only.
 				</div>
 			</div>
 		</div>

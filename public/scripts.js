@@ -56,6 +56,8 @@ const DOMElements = {
 	timeRange: document.getElementById('timeRange'),
 	mtrSection: document.getElementById('mtr-section'),
 	mtrTableContainer: document.getElementById('mtrTableContainer'),
+	mtrTimestamp: document.getElementById('mtrTimestamp'),
+	mtrSelector: document.getElementById('mtrSelector'),
 };
 
 // Chart configuration
@@ -131,6 +133,18 @@ function timeAgo(date) {
 	return 'just now';
 }
 
+function formatTimestamp(timestamp) {
+	const date = new Date(timestamp);
+	return date.toLocaleString('en-US', {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		timeZoneName: 'short',
+	});
+}
+
 function isValidNumber(value) {
 	return typeof value === 'number' && !isNaN(value) && isFinite(value);
 }
@@ -141,7 +155,7 @@ function safeNumber(value, defaultValue = null) {
 
 function calculateStatistics(values) {
 	const filteredValues = values.filter((v) => v !== null && v !== undefined && isValidNumber(v));
-	if (!filteredValues.length) return { avg: 'N/A', max: 'N/A', min: 'N/A', p95: 'N/A' };
+	if (!filteredValues.length) return { avg: 'N/A', max: 'N/A', min: 'N/A', p95: 'N/A', median: 'N/A', stddev: 'N/A' };
 
 	const sorted = [...filteredValues].sort((a, b) => a - b);
 	const sum = sorted.reduce((a, b) => a + b, 0);
@@ -149,12 +163,19 @@ function calculateStatistics(values) {
 	const max = Math.max(...sorted);
 	const min = Math.min(...sorted);
 	const p95 = sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
+	const median = sorted[Math.floor(sorted.length / 2)];
+
+	// Calculate standard deviation
+	const variance = sorted.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / sorted.length;
+	const stddev = Math.sqrt(variance);
 
 	return {
 		avg: avg.toFixed(1),
 		max: max.toFixed(1),
 		min: min.toFixed(1),
 		p95: p95.toFixed(1),
+		median: median.toFixed(1),
+		stddev: stddev.toFixed(1),
 	};
 }
 
@@ -162,15 +183,12 @@ function calculateStatistics(values) {
 function isValidLogEntry(entry) {
 	if (!entry || typeof entry !== 'object') return false;
 	if (typeof entry.timestamp !== 'string') return false;
-	// D1 returns flat structure, not nested objects
 	return true;
 }
 
 function sanitizeLogEntry(entry) {
-	// D1 returns flat structure - ensure all numeric fields are valid
 	const sanitized = { ...entry };
 
-	// Convert all numeric fields
 	const numericFields = [
 		'nq_download_mbps',
 		'nq_upload_mbps',
@@ -237,7 +255,6 @@ async function fetchData() {
 			return;
 		}
 
-		// Validate and sanitize entries
 		const validData = data.filter(isValidLogEntry).map(sanitizeLogEntry);
 
 		if (validData.length === 0) {
@@ -353,7 +370,8 @@ function renderStats(data) {
 		}
 
 		let footer = `Min: ${statData.min}, Max: ${statData.max}`;
-		if (key === 'latency') footer = `P95: ${statData.p95}`;
+		if (key === 'latency') footer = `Median: ${statData.median}ms | P95: ${statData.p95}ms`;
+		if (key === 'download' || key === 'upload') footer = `±${statData.stddev} ${meta.unit} stddev`;
 		if (key === 'totalTests') footer = 'Over selected time range';
 
 		return `
@@ -388,7 +406,7 @@ function renderHighlights(data) {
 		if (a.avg === 'N/A' || b.avg === 'N/A') return 'N/A';
 		const avgA = parseFloat(a.avg);
 		const avgB = parseFloat(b.avg);
-		if (avgA === avgB) return `${nameA} and ${nameB} are similar.`;
+		if (Math.abs(avgA - avgB) < 0.1) return `${nameA} and ${nameB} are equivalent.`;
 
 		const faster = avgA < avgB ? nameA : nameB;
 		const slower = faster === nameA ? nameB : nameA;
@@ -422,7 +440,6 @@ function renderHighlights(data) {
 }
 
 function createDataset(label, data, color, options = {}) {
-	// Filter out invalid data points
 	const validData = data.map((point) => ({
 		x: point.x,
 		y: isValidNumber(point.y) ? point.y : null,
@@ -675,15 +692,49 @@ function renderMtrTable(data) {
 		return;
 	}
 
-	const latestEntry = data[data.length - 1];
+	// Filter entries with valid MTR data
+	const entriesWithMTR = data.filter((entry) => {
+		try {
+			return entry.mtr_cloudflare_hops || entry.mtr_google_hops;
+		} catch (e) {
+			return false;
+		}
+	});
+
+	if (entriesWithMTR.length === 0) {
+		DOMElements.mtrSection.style.display = 'none';
+		document.getElementById('mtr-google-section').style.display = 'none';
+		return;
+	}
+
+	// Populate selector with available timestamps
+	const selectorHTML = entriesWithMTR
+		.reverse()
+		.map((entry, index) => {
+			const timestamp = formatTimestamp(entry.timestamp);
+			return `<option value="${index}">${timestamp}</option>`;
+		})
+		.join('');
+
+	DOMElements.mtrSelector.innerHTML = selectorHTML;
+
+	// Display the latest entry by default
+	displayMtrForIndex(0, entriesWithMTR);
+}
+
+function displayMtrForIndex(index, entriesWithMTR) {
+	const entry = entriesWithMTR[index];
+
+	// Update timestamp display
+	DOMElements.mtrTimestamp.textContent = `Captured: ${formatTimestamp(entry.timestamp)}`;
 
 	// Render Cloudflare MTR
 	DOMElements.mtrSection.style.display = 'block';
 	let mtrHopsCF = [];
 
 	try {
-		if (latestEntry.mtr_cloudflare_hops) {
-			mtrHopsCF = JSON.parse(latestEntry.mtr_cloudflare_hops);
+		if (entry.mtr_cloudflare_hops) {
+			mtrHopsCF = JSON.parse(entry.mtr_cloudflare_hops);
 		}
 	} catch (e) {
 		console.error('Error parsing Cloudflare MTR hops:', e);
@@ -706,8 +757,8 @@ function renderMtrTable(data) {
 	let mtrHopsGoogle = [];
 
 	try {
-		if (latestEntry.mtr_google_hops) {
-			mtrHopsGoogle = JSON.parse(latestEntry.mtr_google_hops);
+		if (entry.mtr_google_hops) {
+			mtrHopsGoogle = JSON.parse(entry.mtr_google_hops);
 		}
 	} catch (e) {
 		console.error('Error parsing Google MTR hops:', e);
@@ -821,6 +872,13 @@ function initializeTooltips() {
 DOMElements.timeRange?.addEventListener('change', (e) => {
 	currentTimeRange = e.target.value;
 	renderDashboard();
+});
+
+DOMElements.mtrSelector?.addEventListener('change', (e) => {
+	const index = parseInt(e.target.value, 10);
+	const filteredData = filterDataByTimeRange(currentTimeRange);
+	const entriesWithMTR = filteredData.filter((entry) => entry.mtr_cloudflare_hops || entry.mtr_google_hops).reverse();
+	displayMtrForIndex(index, entriesWithMTR);
 });
 
 // Initialize

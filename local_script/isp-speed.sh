@@ -319,14 +319,21 @@ upload_with_retry() {
         log_info "Upload attempt $attempt/$MAX_UPLOAD_RETRIES..."
         
         local response
+        # Using Cloudflare Access (Service Token Headers) for authentication
         if response=$(curl -s -X POST "$UPLOAD_ENDPOINT" \
             -H "Content-Type: application/json" \
             -H "X-Request-ID: $REQUEST_ID" \
+            -H "CF-Access-Client-Id: <CLIENT_ID>" \
+            -H "CF-Access-Client-Secret: <CLIENT_SECRET>" \
             -d @"$data_file" \
             -w "\n%{http_code}" 2>&1); then
             
             local http_code=$(echo "$response" | tail -n 1)
             local body=$(echo "$response" | sed '$d')
+
+            # Check response
+            log_info "Response HTTP Code: $http_code"
+            log_info "Start of the Response (first 100 chars): ${body:0:100}"
             
             if [ "$http_code" = "200" ]; then
                 log_info "✓ Upload successful"
