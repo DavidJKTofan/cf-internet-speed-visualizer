@@ -1,0 +1,317 @@
+[
+  {
+    "timestamp": "2025-12-04T23:21:47Z",
+    "networkquality": {
+      "download_mbps": 51,
+      "upload_mbps": 18,
+      "responsiveness": 70
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.195,
+        "rtt_avg": 23.168,
+        "rtt_max": 46.049,
+        "rtt_stddev": 8.286
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 10.758,
+        "rtt_avg": 18.250,
+        "rtt_max": 32.592,
+        "rtt_stddev": 5.653
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.002233,
+        "ttfb": 5.725093,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.002090,
+        "ttfb": 3.157583,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": null,
+      "upload_mbps": null,
+      "ping_ms": null
+    }
+  },
+  {
+    "timestamp": "2025-12-04T23:24:45Z",
+    "networkquality": {
+      "download_mbps": 50,
+      "upload_mbps": 18,
+      "responsiveness": 69
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.469,
+        "rtt_avg": 21.744,
+        "rtt_max": 36.224,
+        "rtt_stddev": 5.951
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 9.808,
+        "rtt_avg": 18.243,
+        "rtt_max": 32.927,
+        "rtt_stddev": 5.914
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.001619,
+        "ttfb": 0.000000,
+        "http_code": "000"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.003150,
+        "ttfb": 0.134351,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 58.38,
+      "upload_mbps": 19.90,
+      "ping_ms": 9.701
+    }
+  },
+  {
+    "timestamp": "2025-12-05T00:41:48+0100",
+    "networkquality": {
+      "download_mbps": 51,
+      "upload_mbps": 18,
+      "responsiveness": 64
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.853,
+        "rtt_avg": 22.354,
+        "rtt_max": 36.376,
+        "rtt_stddev": 5.462
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 10.387,
+        "rtt_avg": 17.497,
+        "rtt_max": 32.983,
+        "rtt_stddev": 6.226
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.045167,
+        "ttfb": 0.460595,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.068463,
+        "ttfb": 0.195537,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 58.39,
+      "upload_mbps": 19.73,
+      "ping_ms": 9.723
+    }
+  },
+  {
+    "timestamp": "2025-12-05T00:49:40+0100",
+    "networkquality": {
+      "download_mbps": 53,
+      "upload_mbps": 18,
+      "responsiveness": 38
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.008,
+        "rtt_avg": 21.204,
+        "rtt_max": 32.900,
+        "rtt_stddev": 5.393
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 9.783,
+        "rtt_avg": 19.468,
+        "rtt_max": 38.325,
+        "rtt_stddev": 6.791
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.040746,
+        "ttfb": 0.456535,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.042181,
+        "ttfb": 0.170646,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 58.12,
+      "upload_mbps": 19.94,
+      "ping_ms": 10.659
+    }
+  },
+  {
+    "timestamp": "2025-12-05T00:54:04+0100",
+    "networkquality": {
+      "download_mbps": 50,
+      "upload_mbps": 18,
+      "responsiveness": 48
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.137,
+        "rtt_avg": 21.342,
+        "rtt_max": 35.666,
+        "rtt_stddev": 5.911
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 9.570,
+        "rtt_avg": 16.961,
+        "rtt_max": 28.549,
+        "rtt_stddev": 5.048
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.002037,
+        "ttfb": 0.421763,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.002859,
+        "ttfb": 0.115748,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 58.48,
+      "upload_mbps": 19.90,
+      "ping_ms": 10.326
+    }
+  },
+  {
+    "timestamp": "2025-12-05T00:58:46+0100",
+    "networkquality": {
+      "download_mbps": 51,
+      "upload_mbps": 18,
+      "responsiveness": 71
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 13.714,
+        "rtt_avg": 19.608,
+        "rtt_max": 34.666,
+        "rtt_stddev": 6.349
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 9.879,
+        "rtt_avg": 16.988,
+        "rtt_max": 31.424,
+        "rtt_stddev": 5.938
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.045306,
+        "ttfb": 0.541462,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.041101,
+        "ttfb": 0.167898,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 58.47,
+      "upload_mbps": 19.91,
+      "ping_ms": 9.574
+    }
+  },
+  {
+    "timestamp": "2025-12-05T01:06:36+0100",
+    "networkquality": {
+      "download_mbps": 51,
+      "upload_mbps": 17,
+      "responsiveness": 61
+    },
+    "ping": {
+      "cloudflare": {
+        "host": "1.1.1.1",
+        "packet_loss": 0.0,
+        "rtt_min": 14.934,
+        "rtt_avg": 21.100,
+        "rtt_max": 30.337,
+        "rtt_stddev": 4.398
+      },
+      "google": {
+        "host": "8.8.8.8",
+        "packet_loss": 0.0,
+        "rtt_min": 9.720,
+        "rtt_avg": 14.380,
+        "rtt_max": 32.503,
+        "rtt_stddev": 6.582
+      }
+    },
+    "curl": {
+      "us_dlsdemo": {
+        "url": "us.dlsdemo.com",
+        "dns_lookup": 0.030990,
+        "ttfb": 0.393483,
+        "http_code": "200"
+      },
+      "eu_dlsdemo": {
+        "url": "eu.dlsdemo.com",
+        "dns_lookup": 0.029040,
+        "ttfb": 0.149928,
+        "http_code": "200"
+      }
+    },
+    "speedtest": {
+      "download_mbps": 56.28,
+      "upload_mbps": 19.87,
+      "ping_ms": 10.596
+    }
+  }
+]

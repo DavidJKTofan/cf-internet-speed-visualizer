@@ -1,0 +1,33 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cf-internet-speed-visualizer",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-12-02",
+	"compatibility_flags": ["global_fetch_strictly_public"],
+	"assets": {
+		// The path to the directory containing the `index.html` file to be served at `/`
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "network-quality-db",
+			"database_id": "f18a8af6-1488-43d8-a18d-18f20144a864",
+			"remote": true
+		}
+	],
+	"routes": [
+		{
+			"pattern": "logs.davidjktofan.com",
+			"custom_domain": true
+		}
+	]
+}
