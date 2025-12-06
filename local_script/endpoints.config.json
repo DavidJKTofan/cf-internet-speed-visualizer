@@ -1,0 +1,18 @@
+{
+	"ping": [
+		{ "id": "cloudflare", "name": "Cloudflare", "host": "1.1.1.1" },
+		{ "id": "google", "name": "Google", "host": "8.8.8.8" }
+	],
+	"curl": [
+		{ "id": "us_dlsdemo", "name": "US", "host": "us.dlsdemo.com" },
+		{ "id": "eu_dlsdemo", "name": "EU", "host": "eu.dlsdemo.com" }
+	],
+	"mtr": [
+		{ "id": "cloudflare", "name": "Cloudflare", "host": "1.1.1.1" },
+		{ "id": "google", "name": "Google", "host": "8.8.8.8" }
+	],
+	"dns": [
+		{ "id": "cloudflare", "name": "Cloudflare DNS", "domain": "cloudflare.com", "resolver": "1.1.1.1" },
+		{ "id": "google", "name": "Google DNS", "domain": "google.com", "resolver": "8.8.8.8" }
+	]
+}

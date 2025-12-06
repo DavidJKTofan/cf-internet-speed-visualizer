@@ -169,3 +169,4 @@ dist
 local_script/network_quality_log.json
 local_script/network_quality_log.json
 /local_script/.buffer
+local_script/backup_data.json

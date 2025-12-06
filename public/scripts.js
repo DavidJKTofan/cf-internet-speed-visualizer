@@ -1,40 +1,29 @@
-// Enterprise-grade frontend with comprehensive error handling and validation
+// Frontend - Dynamic Endpoint Rendering
 
-// Constants
-const CHART_COLORS = {
-	primary: '#3b82f6',
-	secondary: '#8b5cf6',
-	tertiary: '#06b6d4',
-	quaternary: '#10b981',
-	quinary: '#ec4899',
-	senary: '#f59e0b',
-};
+const CHART_COLORS = [
+	'#3b82f6',
+	'#8b5cf6',
+	'#06b6d4',
+	'#10b981',
+	'#ec4899',
+	'#f59e0b',
+	'#ef4444',
+	'#8b5cf6',
+	'#14b8a6',
+	'#f97316',
+	'#a855f7',
+	'#22c55e',
+];
 
 const TOOLTIP_CONTENT = {
-	'throughput-tooltip-trigger':
-		"Measures sustained data transfer rates using macOS NetworkQuality tool (Apple's RPM standard) and Ookla Speedtest CLI. Download represents inbound capacity; upload represents outbound capacity. Variability indicates congestion, throttling, or infrastructure limitations.",
-	'rtt-tooltip-trigger':
-		'Round-trip time (RTT) measures network delay via ICMP echo requests to infrastructure endpoints. Shaded areas show min-max range; lines show average. Lower RTT indicates better routing and proximity to endpoints.',
-	'ttfb-tooltip-trigger':
-		'Time to First Byte (TTFB) includes DNS lookup, TCP handshake, TLS negotiation, and server processing time. Measures end-to-end latency to geographically distributed endpoints. Higher values may indicate routing issues or server distance.',
-	'responsiveness-tooltip-trigger':
-		"Apple's Responsiveness Per Minute (RPM) metric quantifies network quality under load by measuring round-trips per minute during active data transfer. Higher RPM indicates better interactive performance (e.g., video calls, gaming).",
-	'packet-loss-tooltip-trigger':
-		'Percentage of ICMP packets lost during transmission. Packet loss directly impacts connection quality, causing retransmissions and degraded performance. Values above 1% may indicate network problems.',
-	'dns-tooltip-trigger':
-		'DNS lookup duration measures the time required to resolve domain names to IP addresses. This is the first step in any web request and directly impacts perceived load times. Values above 100ms can suggest DNS server issues. The `dig` tool provides more precise measurements than cURL.',
+	'throughput-tooltip-trigger': 'Measures sustained data transfer rates using macOS NetworkQuality (NQ) tool and Ookla Speedtest (ST) CLI.',
+	'rtt-tooltip-trigger': 'Round-trip time (RTT) measures network delay via ICMP echo requests to infrastructure endpoints.',
+	'ttfb-tooltip-trigger': 'Time to First Byte (TTFB) includes DNS lookup, TCP handshake, TLS negotiation, and server processing.',
+	'responsiveness-tooltip-trigger': "Apple's RPM metric quantifies network quality under load.",
+	'packet-loss-tooltip-trigger': 'Percentage of ICMP packets lost during transmission.',
+	'dns-tooltip-trigger': 'DNS lookup duration measures time to resolve domain names to IP addresses.',
 };
 
-const METRIC_META = {
-	download: { label: 'Avg Download', unit: 'Mbps', higherIsBetter: true },
-	upload: { label: 'Avg Upload', unit: 'Mbps', higherIsBetter: true },
-	latency: { label: 'Avg Latency', unit: 'ms', higherIsBetter: false },
-	responsiveness: { label: 'Responsiveness', unit: 'RPM', higherIsBetter: true },
-	packetLoss: { label: 'Packet Loss', unit: '%', higherIsBetter: false },
-	totalTests: { label: 'Total Tests', unit: '', higherIsBetter: null },
-};
-
-// State
 let allData = [];
 let charts = {};
 let currentTimeRange = 'all';
@@ -43,7 +32,6 @@ let retryCount = 0;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000;
 
-// DOM Elements
 const DOMElements = {
 	loading: document.getElementById('loading'),
 	emptyState: document.getElementById('emptyState'),
@@ -62,7 +50,6 @@ const DOMElements = {
 	mtrSelector: document.getElementById('mtrSelector'),
 };
 
-// Chart configuration
 const commonOptions = {
 	responsive: true,
 	maintainAspectRatio: false,
@@ -72,12 +59,7 @@ const commonOptions = {
 			display: true,
 			position: 'bottom',
 			align: 'start',
-			labels: {
-				color: '#94a3b8',
-				boxWidth: 12,
-				padding: 20,
-				font: { size: 12 },
-			},
+			labels: { color: '#94a3b8', boxWidth: 12, padding: 20, font: { size: 12 } },
 		},
 		tooltip: {
 			backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -86,40 +68,25 @@ const commonOptions = {
 			borderColor: '#334155',
 			borderWidth: 1,
 			padding: 10,
-			displayColors: true,
-			usePointStyle: true,
 		},
 	},
 	scales: {
 		x: {
 			type: 'time',
-			time: {
-				unit: 'hour',
-				displayFormats: { hour: 'MMM d, ha' },
-			},
-			ticks: {
-				color: '#94a3b8',
-				font: { size: 11 },
-				source: 'auto',
-				maxRotation: 0,
-				autoSkip: true,
-				autoSkipPadding: 20,
-			},
+			time: { unit: 'hour', displayFormats: { hour: 'MMM d, ha' } },
+			ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0, autoSkip: true },
 			grid: { color: 'rgba(51, 65, 85, 0.5)', drawBorder: false },
 		},
 		y: {
-			ticks: { color: '#94a3b8', font: { size: 11 }, padding: 5 },
+			ticks: { color: '#94a3b8', font: { size: 11 } },
 			grid: { color: 'rgba(51, 65, 85, 0.5)', drawBorder: false },
 			beginAtZero: true,
 		},
 	},
-	animation: {
-		duration: 400,
-		easing: 'easeOutQuad',
-	},
+	animation: { duration: 400, easing: 'easeOutQuad' },
 };
 
-// Utility functions
+// --- Utility ---
 function timeAgo(date) {
 	const seconds = Math.floor((new Date() - date) / 1000);
 	let interval = seconds / 31536000;
@@ -156,18 +123,16 @@ function safeNumber(value, defaultValue = null) {
 }
 
 function calculateStatistics(values) {
-	const filteredValues = values.filter((v) => v !== null && v !== undefined && isValidNumber(v));
-	if (!filteredValues.length) return { avg: 'N/A', max: 'N/A', min: 'N/A', p95: 'N/A', median: 'N/A', stddev: 'N/A' };
+	const filtered = values.filter((v) => v !== null && v !== undefined && isValidNumber(v));
+	if (!filtered.length) return { avg: 'N/A', max: 'N/A', min: 'N/A', p95: 'N/A', median: 'N/A', stddev: 'N/A' };
 
-	const sorted = [...filteredValues].sort((a, b) => a - b);
+	const sorted = [...filtered].sort((a, b) => a - b);
 	const sum = sorted.reduce((a, b) => a + b, 0);
 	const avg = sum / sorted.length;
 	const max = Math.max(...sorted);
 	const min = Math.min(...sorted);
 	const p95 = sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
 	const median = sorted[Math.floor(sorted.length / 2)];
-
-	// Calculate standard deviation
 	const variance = sorted.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / sorted.length;
 	const stddev = Math.sqrt(variance);
 
@@ -181,75 +146,28 @@ function calculateStatistics(values) {
 	};
 }
 
-// Data validation - Updated to match D1 flat structure
-function isValidLogEntry(entry) {
-	if (!entry || typeof entry !== 'object') return false;
-	if (typeof entry.timestamp !== 'string') return false;
-	return true;
-}
-
-function sanitizeLogEntry(entry) {
-	const sanitized = { ...entry };
-
-	const numericFields = [
-		'nq_download_mbps',
-		'nq_upload_mbps',
-		'nq_responsiveness_rpm',
-		'ping_cf_packet_loss_percent',
-		'ping_cf_rtt_avg',
-		'ping_cf_rtt_min',
-		'ping_cf_rtt_max',
-		'ping_cf_rtt_stddev',
-		'ping_google_packet_loss_percent',
-		'ping_google_rtt_avg',
-		'ping_google_rtt_min',
-		'ping_google_rtt_max',
-		'ping_google_rtt_stddev',
-		'curl_us_dns_lookup_s',
-		'curl_us_ttfb_s',
-		'curl_eu_dns_lookup_s',
-		'curl_eu_ttfb_s',
-		'st_download_mbps',
-		'st_upload_mbps',
-		'st_ping_ms',
-		'dns_cf_query_time_ms',
-		'dns_google_query_time_ms',
-	];
-
-	numericFields.forEach((field) => {
-		if (sanitized[field] !== null && sanitized[field] !== undefined) {
-			sanitized[field] = safeNumber(parseFloat(sanitized[field]));
+function parseEndpointResults(data, field) {
+	return data.map((d) => {
+		try {
+			return typeof d[field] === 'string' ? JSON.parse(d[field]) : d[field] || [];
+		} catch (e) {
+			console.warn(`Failed to parse ${field}:`, e);
+			return [];
 		}
 	});
-
-	return sanitized;
 }
 
-// API with retry logic
+// --- Data Fetching ---
 async function fetchData() {
 	try {
 		console.log('Fetching network logs...');
-		const response = await fetch('/api/logs?limit=2000', {
-			headers: {
-				Accept: 'application/json',
-			},
-		});
+		const response = await fetch('/api/logs?limit=2000', { headers: { Accept: 'application/json' } });
 
-		if (!response.ok) {
-			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-		}
-
-		const contentType = response.headers.get('content-type');
-		if (!contentType || !contentType.includes('application/json')) {
-			throw new Error('Invalid content type: expected JSON');
-		}
+		if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
 		const data = await response.json();
 
-		if (!Array.isArray(data)) {
-			throw new Error('Invalid data format: expected array');
-		}
-
+		if (!Array.isArray(data)) throw new Error('Invalid data format');
 		if (data.length === 0) {
 			console.log('No data available');
 			showUIState('empty');
@@ -257,17 +175,7 @@ async function fetchData() {
 			return;
 		}
 
-		const validData = data.filter(isValidLogEntry).map(sanitizeLogEntry);
-
-		if (validData.length === 0) {
-			throw new Error('All entries failed validation');
-		}
-
-		if (validData.length < data.length) {
-			console.warn(`${data.length - validData.length} invalid entries filtered out`);
-		}
-
-		allData = validData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+		allData = data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 		retryCount = 0;
 		renderDashboard();
 	} catch (error) {
@@ -275,37 +183,28 @@ async function fetchData() {
 
 		if (retryCount < MAX_RETRIES) {
 			retryCount++;
-			console.log(`Retrying in ${RETRY_DELAY / 1000}s (attempt ${retryCount}/${MAX_RETRIES})`);
+			console.log(`Retrying (${retryCount}/${MAX_RETRIES})...`);
 			showUIState('error', `Connection failed. Retrying... (${retryCount}/${MAX_RETRIES})`);
 			setTimeout(fetchData, RETRY_DELAY);
 		} else {
-			showUIState('error', `Failed to load data: ${error.message}. Please refresh the page.`);
+			showUIState('error', `Failed to load data: ${error.message}. Please refresh.`);
 		}
 	}
 }
 
-// Data filtering
 const filterDataByTimeRange = (hours) => {
 	if (hours === 'all') return allData;
 	const cutoff = Date.now() - hours * 60 * 60 * 1000;
-	return allData.filter((d) => {
-		try {
-			return new Date(d.timestamp) >= cutoff;
-		} catch (e) {
-			console.warn('Invalid timestamp:', d.timestamp);
-			return false;
-		}
-	});
+	return allData.filter((d) => new Date(d.timestamp) >= cutoff);
 };
 
-// UI State management
+// --- UI State ---
 function showUIState(state, message = '') {
 	DOMElements.loading.style.display = 'none';
 	DOMElements.content.style.display = 'none';
 	DOMElements.emptyState.style.display = 'none';
 	DOMElements.error.style.display = 'none';
 	DOMElements.mtrSection.style.display = 'none';
-
 	clearInterval(lastUpdatedInterval);
 
 	switch (state) {
@@ -316,14 +215,12 @@ function showUIState(state, message = '') {
 			DOMElements.emptyState.style.display = 'flex';
 			DOMElements.statusBadge.style.background = 'var(--text-muted)';
 			DOMElements.statusText.textContent = 'No Data';
-			DOMElements.lastUpdated.textContent = '';
 			break;
 		case 'error':
 			DOMElements.error.style.display = 'flex';
 			DOMElements.errorText.textContent = message;
 			DOMElements.statusBadge.style.background = 'var(--error)';
 			DOMElements.statusText.textContent = 'Error';
-			DOMElements.lastUpdated.textContent = '';
 			break;
 		case 'content':
 			DOMElements.content.style.display = 'block';
@@ -337,58 +234,60 @@ function showUIState(state, message = '') {
 
 function updateLastUpdated() {
 	if (allData.length > 0) {
-		try {
-			const lastTimestamp = allData[allData.length - 1].timestamp;
-			DOMElements.lastUpdated.textContent = `Updated ${timeAgo(new Date(lastTimestamp))}`;
-		} catch (e) {
-			console.error('Error updating last updated time:', e);
-		}
+		const lastTimestamp = allData[allData.length - 1].timestamp;
+		DOMElements.lastUpdated.textContent = `Updated ${timeAgo(new Date(lastTimestamp))}`;
 	}
 }
 
-// Rendering functions
+// --- Rendering ---
 function renderStats(data) {
 	if (!data || data.length === 0) {
-		DOMElements.statsGrid.innerHTML = '<p>No data to display</p>';
+		DOMElements.statsGrid.innerHTML = '<p>No data</p>';
 		return;
 	}
+
+	const pingResults = parseEndpointResults(data, 'ping_results');
+	const firstPing = pingResults.find((r) => r.length > 0)?.[0];
 
 	const stats = {
 		download: calculateStatistics(data.map((d) => safeNumber(d.nq_download_mbps))),
 		upload: calculateStatistics(data.map((d) => safeNumber(d.nq_upload_mbps))),
-		latency: calculateStatistics(data.map((d) => safeNumber(d.ping_cf_rtt_avg))),
+		latency: calculateStatistics(pingResults.flatMap((r) => r.map((e) => safeNumber(e.rtt_ms?.avg)))),
 		responsiveness: calculateStatistics(data.map((d) => safeNumber(d.nq_responsiveness_rpm))),
-		packetLoss: calculateStatistics(data.map((d) => safeNumber(d.ping_cf_packet_loss_percent))),
+		packetLoss: calculateStatistics(pingResults.flatMap((r) => r.map((e) => safeNumber(e.packet_loss_percent)))),
 		totalTests: { avg: data.length },
 	};
 
-	const statHTML = (key, statData) => {
-		const meta = METRIC_META[key];
-		if (!meta) return '';
-
+	const statHTML = (key, label, unit, higherIsBetter) => {
+		const statData = stats[key];
 		let indicator = '';
-		if (meta.higherIsBetter !== null) {
-			indicator = `<span class="stat-indicator ${meta.higherIsBetter ? 'good' : 'bad'}">${meta.higherIsBetter ? '↑' : '↓'}</span>`;
+		if (higherIsBetter !== null) {
+			indicator = `<span class="stat-indicator ${higherIsBetter ? 'good' : 'bad'}">${higherIsBetter ? '↑' : '↓'}</span>`;
 		}
-
 		let footer = `Min: ${statData.min}, Max: ${statData.max}`;
 		if (key === 'latency') footer = `Median: ${statData.median}ms | P95: ${statData.p95}ms`;
-		if (key === 'download' || key === 'upload') footer = `±${statData.stddev} ${meta.unit} stddev`;
+		if (key === 'download' || key === 'upload') footer = `±${statData.stddev} ${unit} stddev`;
 		if (key === 'totalTests') footer = 'Over selected time range';
 
 		return `
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-label">${meta.label}</div>
-          ${indicator}
-        </div>
-        <div class="stat-value">${statData.avg}<span class="stat-unit">${meta.unit}</span></div>
-        <div class="stat-footer">${footer}</div>
-      </div>`;
+			<div class="stat-card">
+				<div class="stat-header">
+					<div class="stat-label">${label}</div>
+					${indicator}
+				</div>
+				<div class="stat-value">${statData.avg}<span class="stat-unit">${unit}</span></div>
+				<div class="stat-footer">${footer}</div>
+			</div>`;
 	};
 
-	const filteredStatKeys = ['download', 'upload', 'latency', 'responsiveness', 'packetLoss', 'totalTests'];
-	DOMElements.statsGrid.innerHTML = filteredStatKeys.map((key) => statHTML(key, stats[key])).join('');
+	DOMElements.statsGrid.innerHTML = [
+		statHTML('download', 'Avg Download', 'Mbps', true),
+		statHTML('upload', 'Avg Upload', 'Mbps', true),
+		statHTML('latency', 'Avg Latency', 'ms', false),
+		statHTML('responsiveness', 'Responsiveness', 'RPM', true),
+		statHTML('packetLoss', 'Packet Loss', '%', false),
+		statHTML('totalTests', 'Total Tests', '', null),
+	].join('');
 }
 
 function renderHighlights(data) {
@@ -397,25 +296,53 @@ function renderHighlights(data) {
 		return;
 	}
 
-	const ttfbUS = calculateStatistics(data.map((d) => (d.curl_us_ttfb_s ? safeNumber(d.curl_us_ttfb_s * 1000) : null)));
-	const ttfbEU = calculateStatistics(data.map((d) => (d.curl_eu_ttfb_s ? safeNumber(d.curl_eu_ttfb_s * 1000) : null)));
-	const rttCF = calculateStatistics(data.map((d) => safeNumber(d.ping_cf_rtt_avg)));
-	const rttGoogle = calculateStatistics(data.map((d) => safeNumber(d.ping_google_rtt_avg)));
-	const dnsCF = calculateStatistics(data.map((d) => safeNumber(d.dns_cf_query_time_ms)));
-	const dnsGoogle = calculateStatistics(data.map((d) => safeNumber(d.dns_google_query_time_ms)));
+	const curlResults = parseEndpointResults(data, 'curl_results');
+	const pingResults = parseEndpointResults(data, 'ping_results');
+	const dnsResults = parseEndpointResults(data, 'dns_results');
 
-	const comparison = (a, b, nameA, nameB) => {
-		if (a.avg === 'N/A' || b.avg === 'N/A') return 'N/A';
-		const avgA = parseFloat(a.avg);
-		const avgB = parseFloat(b.avg);
-		if (Math.abs(avgA - avgB) < 0.1) return `${nameA} and ${nameB} are equivalent.`;
+	const curlStats = {};
+	const pingStats = {};
+	const dnsStats = {};
 
-		const faster = avgA < avgB ? nameA : nameB;
-		const slower = faster === nameA ? nameB : nameA;
-		const diff = Math.abs(avgA - avgB);
-		const diffPercent = (diff / Math.min(avgA, avgB)) * 100;
+	curlResults.forEach((results) => {
+		results.forEach((r) => {
+			if (!curlStats[r.id]) curlStats[r.id] = { name: r.name, values: [] };
+			if (r.ttfb_s) curlStats[r.id].values.push(r.ttfb_s * 1000);
+		});
+	});
 
-		return `<span class="faster">${faster}</span> is <span class="slower">${diffPercent.toFixed(0)}%</span> faster than ${slower}.`;
+	pingResults.forEach((results) => {
+		results.forEach((r) => {
+			if (!pingStats[r.id]) pingStats[r.id] = { name: r.name, values: [] };
+			if (r.rtt_ms?.avg) pingStats[r.id].values.push(r.rtt_ms.avg);
+		});
+	});
+
+	dnsResults.forEach((results) => {
+		results.forEach((r) => {
+			if (!dnsStats[r.id]) dnsStats[r.id] = { name: r.name, values: [] };
+			if (r.query_time_ms) dnsStats[r.id].values.push(r.query_time_ms);
+		});
+	});
+
+	const compare = (stats) => {
+		const calculated = Object.entries(stats)
+			.map(([id, { name, values }]) => ({
+				id,
+				name,
+				avg: calculateStatistics(values).avg,
+			}))
+			.filter((s) => s.avg !== 'N/A');
+
+		if (calculated.length < 2) return 'Insufficient data';
+
+		calculated.sort((a, b) => parseFloat(a.avg) - parseFloat(b.avg));
+		const fastest = calculated[0];
+		const slowest = calculated[calculated.length - 1];
+		const diff = parseFloat(slowest.avg) - parseFloat(fastest.avg);
+		const diffPercent = ((diff / parseFloat(fastest.avg)) * 100).toFixed(0);
+
+		return `<span class="faster">${fastest.name}</span> is <span class="slower">${diffPercent}%</span> faster than ${slowest.name}.`;
 	};
 
 	const highlightHTML = (title, body, footer) => `
@@ -426,30 +353,33 @@ function renderHighlights(data) {
 		</div>
 	`;
 
+	const curlComparison = compare(curlStats);
+	const pingComparison = compare(pingStats);
+	const dnsComparison = compare(dnsStats);
+
+	const curlFooter = Object.entries(curlStats)
+		.map(([id, { name, values }]) => `${name}: ${calculateStatistics(values).avg}ms`)
+		.join(' vs ');
+
+	const pingFooter = Object.entries(pingStats)
+		.map(([id, { name, values }]) => `${name}: ${calculateStatistics(values).avg}ms`)
+		.join(' vs ');
+
+	const dnsFooter = Object.entries(dnsStats)
+		.map(([id, { name, values }]) => `${name}: ${calculateStatistics(values).avg}ms`)
+		.join(' vs ');
+
 	DOMElements.highlightsGrid.innerHTML = [
-		highlightHTML('Fastest Endpoint (TTFB)', comparison(ttfbUS, ttfbEU, 'US', 'EU'), `US: ${ttfbUS.avg}ms vs EU: ${ttfbEU.avg}ms`),
-		highlightHTML(
-			'Fastest Ping (RTT)',
-			comparison(rttCF, rttGoogle, 'Cloudflare', 'Google'),
-			`CF: ${rttCF.avg}ms vs Google: ${rttGoogle.avg}ms`
-		),
-		highlightHTML(
-			'Fastest DNS Lookup',
-			comparison(dnsCF, dnsGoogle, 'Cloudflare DNS', 'Google DNS'),
-			`CF: ${dnsCF.avg}ms vs Google: ${dnsGoogle.avg}ms`
-		),
+		highlightHTML('Fastest Endpoint (TTFB)', curlComparison, curlFooter),
+		highlightHTML('Fastest Ping (RTT)', pingComparison, pingFooter),
+		highlightHTML('Fastest DNS Lookup', dnsComparison, dnsFooter),
 	].join('');
 }
 
-function createDataset(label, data, color, options = {}) {
-	const validData = data.map((point) => ({
-		x: point.x,
-		y: isValidNumber(point.y) ? point.y : null,
-	}));
-
+function createDataset(label, data, color) {
 	return {
 		label,
-		data: validData,
+		data: data.map((point) => ({ x: point.x, y: isValidNumber(point.y) ? point.y : null })),
 		borderColor: color,
 		backgroundColor: `${color}30`,
 		tension: 0.3,
@@ -458,245 +388,191 @@ function createDataset(label, data, color, options = {}) {
 		pointHoverRadius: 4,
 		borderWidth: 1.5,
 		spanGaps: true,
-		...options,
 	};
 }
 
 function renderCharts(data) {
-	if (!data || data.length === 0) {
-		console.warn('No data to render charts');
-		return;
-	}
+	if (!data || data.length === 0) return;
 
-	Object.values(charts).forEach((chart) => {
-		try {
-			chart.destroy();
-		} catch (e) {
-			console.warn('Error destroying chart:', e);
-		}
-	});
+	Object.values(charts).forEach((chart) => chart.destroy());
 	charts = {};
 
-	const chartConfigs = {
-		speedChart: {
-			type: 'line',
-			data: {
-				datasets: [
-					createDataset(
-						'NQ Download',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_download_mbps) })),
-						CHART_COLORS.primary,
-						{ fill: true }
-					),
-					createDataset(
-						'NQ Upload',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_upload_mbps) })),
-						CHART_COLORS.secondary,
-						{ fill: true }
-					),
-					createDataset(
-						'ST Download',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.st_download_mbps) })),
-						CHART_COLORS.senary,
-						{ borderDash: [5, 5], fill: false }
-					),
-				],
-			},
-			options: {
-				...commonOptions,
-				scales: {
-					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, title: { display: true, text: 'Mbps', color: '#94a3b8' } },
-				},
-			},
-		},
-		rttChart: {
-			type: 'line',
-			data: {
-				datasets: [
-					createDataset(
-						'Cloudflare',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_avg) })),
-						CHART_COLORS.tertiary,
-						{
-							borderWidth: 2.5,
-							pointRadius: 2,
-							pointHoverRadius: 5,
-						}
-					),
-					createDataset(
-						'Google',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_avg) })),
-						CHART_COLORS.quaternary,
-						{
-							borderWidth: 2.5,
-							pointRadius: 2,
-							pointHoverRadius: 5,
-						}
-					),
-				],
-			},
-			options: {
-				...commonOptions,
-				plugins: {
-					...commonOptions.plugins,
-					tooltip: {
-						...commonOptions.plugins.tooltip,
-						callbacks: {
-							label: function (context) {
-								let label = context.dataset.label || '';
-								if (label) {
-									label += ': ';
-								}
-								if (context.parsed.y !== null) {
-									label += context.parsed.y.toFixed(1) + 'ms';
-								}
-								return label;
-							},
-							afterBody: function (tooltipItems) {
-								if (tooltipItems.length === 2) {
-									const cf = tooltipItems.find((item) => item.dataset.label === 'Cloudflare');
-									const google = tooltipItems.find((item) => item.dataset.label === 'Google');
-									if (cf && google && cf.parsed.y !== null && google.parsed.y !== null) {
-										const diff = Math.abs(cf.parsed.y - google.parsed.y);
-										const faster = cf.parsed.y < google.parsed.y ? 'Cloudflare' : 'Google';
-										const percent = ((diff / Math.min(cf.parsed.y, google.parsed.y)) * 100).toFixed(0);
-										return [``, `${faster} is ${diff.toFixed(1)}ms (${percent}%) faster`];
-									}
-								}
-								return [];
-							},
-						},
-					},
-				},
-				scales: {
-					...commonOptions.scales,
-					y: {
-						...commonOptions.scales.y,
-						title: { display: true, text: 'Latency (ms)', color: '#94a3b8', font: { size: 12 } },
-						ticks: {
-							...commonOptions.scales.y.ticks,
-							callback: function (value) {
-								return value + 'ms';
-							},
-						},
-					},
-				},
-			},
-		},
-		ttfbChart: {
-			type: 'line',
-			data: {
-				datasets: [
-					createDataset(
-						'US TTFB',
-						data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.curl_us_ttfb_s ? safeNumber(d.curl_us_ttfb_s * 1000) : null,
-						})),
-						CHART_COLORS.quinary,
-						{ fill: false }
-					),
-					createDataset(
-						'EU TTFB',
-						data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.curl_eu_ttfb_s ? safeNumber(d.curl_eu_ttfb_s * 1000) : null,
-						})),
-						CHART_COLORS.senary,
-						{ fill: false }
-					),
-				],
-			},
-			options: {
-				...commonOptions,
-				scales: {
-					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
-				},
-			},
-		},
-		responsivenessChart: {
-			type: 'bar',
-			data: {
-				datasets: [
-					{
-						label: 'RPM',
-						data: data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_responsiveness_rpm) })),
-						backgroundColor: `${CHART_COLORS.primary}CC`,
-						borderColor: CHART_COLORS.primary,
-						borderWidth: 1,
-					},
-				],
-			},
-			options: {
-				...commonOptions,
-				scales: {
-					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, title: { display: true, text: 'RPM', color: '#94a3b8' } },
-				},
-			},
-		},
-		packetLossChart: {
-			type: 'line',
-			data: {
-				datasets: [
-					createDataset(
-						'Cloudflare Loss',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_packet_loss_percent) })),
-						CHART_COLORS.tertiary
-					),
-					createDataset(
-						'Google Loss',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_packet_loss_percent) })),
-						CHART_COLORS.quaternary
-					),
-				],
-			},
-			options: {
-				...commonOptions,
-				scales: {
-					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, max: 5, title: { display: true, text: '%', color: '#94a3b8' } },
-				},
-			},
-		},
-		dnsChart: {
-			type: 'line',
-			data: {
-				datasets: [
-					createDataset(
-						'Cloudflare DNS',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.dns_cf_query_time_ms) })),
-						CHART_COLORS.quinary
-					),
-					createDataset(
-						'Google DNS',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.dns_google_query_time_ms) })),
-						CHART_COLORS.senary
-					),
-				],
-			},
-			options: {
-				...commonOptions,
-				scales: {
-					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
-				},
-			},
-		},
-	};
+	const pingResults = parseEndpointResults(data, 'ping_results');
+	const curlResults = parseEndpointResults(data, 'curl_results');
+	const dnsResults = parseEndpointResults(data, 'dns_results');
 
-	for (const [id, config] of Object.entries(chartConfigs)) {
-		const ctx = document.getElementById(id);
-		if (ctx) {
-			try {
-				charts[id] = new Chart(ctx, config);
-			} catch (e) {
-				console.error(`Error creating chart ${id}:`, e);
+	// Speed Chart
+	charts.speedChart = new Chart(document.getElementById('speedChart'), {
+		type: 'line',
+		data: {
+			datasets: [
+				createDataset(
+					'NQ Download',
+					data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_download_mbps) })),
+					CHART_COLORS[0]
+				),
+				createDataset(
+					'NQ Upload',
+					data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_upload_mbps) })),
+					CHART_COLORS[1]
+				),
+				createDataset(
+					'ST Download',
+					data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.st_download_mbps) })),
+					CHART_COLORS[5]
+				),
+			],
+		},
+		options: {
+			...commonOptions,
+			scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'Mbps', color: '#94a3b8' } } },
+		},
+	});
+
+	// RTT Chart - Dynamic endpoints
+	const rttDatasets = [];
+	const endpointRttData = {};
+
+	pingResults.forEach((results, dataIndex) => {
+		results.forEach((endpoint) => {
+			if (!endpointRttData[endpoint.id]) {
+				endpointRttData[endpoint.id] = { name: endpoint.name, data: [] };
 			}
-		}
-	}
+			endpointRttData[endpoint.id].data.push({
+				x: new Date(data[dataIndex].timestamp),
+				y: safeNumber(endpoint.rtt_ms?.avg),
+			});
+		});
+	});
+
+	Object.entries(endpointRttData).forEach(([id, { name, data: rttData }], index) => {
+		rttDatasets.push(createDataset(name, rttData, CHART_COLORS[index % CHART_COLORS.length]));
+	});
+
+	charts.rttChart = new Chart(document.getElementById('rttChart'), {
+		type: 'line',
+		data: { datasets: rttDatasets },
+		options: {
+			...commonOptions,
+			scales: {
+				...commonOptions.scales,
+				y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
+			},
+		},
+	});
+
+	// TTFB Chart - Dynamic endpoints
+	const ttfbDatasets = [];
+	const endpointTtfbData = {};
+
+	curlResults.forEach((results, dataIndex) => {
+		results.forEach((endpoint) => {
+			if (!endpointTtfbData[endpoint.id]) {
+				endpointTtfbData[endpoint.id] = { name: endpoint.name, data: [] };
+			}
+			endpointTtfbData[endpoint.id].data.push({
+				x: new Date(data[dataIndex].timestamp),
+				y: endpoint.ttfb_s ? safeNumber(endpoint.ttfb_s * 1000) : null,
+			});
+		});
+	});
+
+	Object.entries(endpointTtfbData).forEach(([id, { name, data: ttfbData }], index) => {
+		ttfbDatasets.push(createDataset(`${name} TTFB`, ttfbData, CHART_COLORS[index + (4 % CHART_COLORS.length)]));
+	});
+
+	charts.ttfbChart = new Chart(document.getElementById('ttfbChart'), {
+		type: 'line',
+		data: { datasets: ttfbDatasets },
+		options: {
+			...commonOptions,
+			scales: {
+				...commonOptions.scales,
+				y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
+			},
+		},
+	});
+
+	// Responsiveness Chart
+	charts.responsivenessChart = new Chart(document.getElementById('responsivenessChart'), {
+		type: 'bar',
+		data: {
+			datasets: [
+				{
+					label: 'RPM',
+					data: data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.nq_responsiveness_rpm) })),
+					backgroundColor: `${CHART_COLORS[0]}CC`,
+					borderColor: CHART_COLORS[0],
+					borderWidth: 1,
+				},
+			],
+		},
+		options: {
+			...commonOptions,
+			scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'RPM', color: '#94a3b8' } } },
+		},
+	});
+
+	// Packet Loss Chart - Dynamic endpoints
+	const lossDatasets = [];
+	const endpointLossData = {};
+
+	pingResults.forEach((results, dataIndex) => {
+		results.forEach((endpoint) => {
+			if (!endpointLossData[endpoint.id]) {
+				endpointLossData[endpoint.id] = { name: endpoint.name, data: [] };
+			}
+			endpointLossData[endpoint.id].data.push({
+				x: new Date(data[dataIndex].timestamp),
+				y: safeNumber(endpoint.packet_loss_percent),
+			});
+		});
+	});
+
+	Object.entries(endpointLossData).forEach(([id, { name, data: lossData }], index) => {
+		lossDatasets.push(createDataset(`${name} Loss`, lossData, CHART_COLORS[index % CHART_COLORS.length]));
+	});
+
+	charts.packetLossChart = new Chart(document.getElementById('packetLossChart'), {
+		type: 'line',
+		data: { datasets: lossDatasets },
+		options: {
+			...commonOptions,
+			scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, max: 5, title: { display: true, text: '%', color: '#94a3b8' } } },
+		},
+	});
+
+	// DNS Chart - Dynamic endpoints
+	const dnsDatasets = [];
+	const endpointDnsData = {};
+
+	dnsResults.forEach((results, dataIndex) => {
+		results.forEach((endpoint) => {
+			if (!endpointDnsData[endpoint.id]) {
+				endpointDnsData[endpoint.id] = { name: endpoint.name, data: [] };
+			}
+			endpointDnsData[endpoint.id].data.push({
+				x: new Date(data[dataIndex].timestamp),
+				y: safeNumber(endpoint.query_time_ms),
+			});
+		});
+	});
+
+	Object.entries(endpointDnsData).forEach(([id, { name, data: dnsData }], index) => {
+		dnsDatasets.push(createDataset(name, dnsData, CHART_COLORS[index + (4 % CHART_COLORS.length)]));
+	});
+
+	charts.dnsChart = new Chart(document.getElementById('dnsChart'), {
+		type: 'line',
+		data: { datasets: dnsDatasets },
+		options: {
+			...commonOptions,
+			scales: {
+				...commonOptions.scales,
+				y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
+			},
+		},
+	});
 }
 
 function renderMtrTable(data) {
@@ -706,14 +582,8 @@ function renderMtrTable(data) {
 		return;
 	}
 
-	// Filter entries with valid MTR data
-	const entriesWithMTR = data.filter((entry) => {
-		try {
-			return entry.mtr_cloudflare_hops || entry.mtr_google_hops;
-		} catch (e) {
-			return false;
-		}
-	});
+	const mtrResults = parseEndpointResults(data, 'mtr_results');
+	const entriesWithMTR = data.filter((_, index) => mtrResults[index] && mtrResults[index].length > 0);
 
 	if (entriesWithMTR.length === 0) {
 		DOMElements.mtrSection.style.display = 'none';
@@ -721,114 +591,81 @@ function renderMtrTable(data) {
 		return;
 	}
 
-	// Populate selector with available timestamps
 	const selectorHTML = entriesWithMTR
 		.reverse()
-		.map((entry, index) => {
-			const timestamp = formatTimestamp(entry.timestamp);
-			return `<option value="${index}">${timestamp}</option>`;
-		})
+		.map((entry, index) => `<option value="${index}">${formatTimestamp(entry.timestamp)}</option>`)
 		.join('');
 
 	DOMElements.mtrSelector.innerHTML = selectorHTML;
-
-	// Display the latest entry by default
-	displayMtrForIndex(0, entriesWithMTR);
+	displayMtrForIndex(0, entriesWithMTR, mtrResults.reverse());
 }
 
-function displayMtrForIndex(index, entriesWithMTR) {
+function displayMtrForIndex(index, entriesWithMTR, mtrResults) {
 	const entry = entriesWithMTR[index];
+	const results = mtrResults[index];
 
-	// Update timestamp display
 	DOMElements.mtrTimestamp.textContent = `Captured: ${formatTimestamp(entry.timestamp)}`;
-
-	// Render Cloudflare MTR
 	DOMElements.mtrSection.style.display = 'block';
-	let mtrHopsCF = [];
 
-	try {
-		if (entry.mtr_cloudflare_hops) {
-			mtrHopsCF = JSON.parse(entry.mtr_cloudflare_hops);
-		}
-	} catch (e) {
-		console.error('Error parsing Cloudflare MTR hops:', e);
-		DOMElements.mtrTableContainer.innerHTML = `<p class="chart-description">MTR data parsing failed.</p>`;
-	}
-
-	if (mtrHopsCF.length === 0 || (mtrHopsCF[0] && mtrHopsCF[0].error === 'failed')) {
-		DOMElements.mtrTableContainer.innerHTML = `<p class="chart-description">MTR data not available or test failed.</p>`;
-	} else {
-		DOMElements.mtrTableContainer.innerHTML = generateMtrTableHTML(mtrHopsCF);
-	}
-
-	// Render Google MTR
-	const mtrGoogleSection = document.getElementById('mtr-google-section');
-	const mtrGoogleContainer = document.getElementById('mtrGoogleTableContainer');
-
-	if (!mtrGoogleSection || !mtrGoogleContainer) return;
-
-	mtrGoogleSection.style.display = 'block';
-	let mtrHopsGoogle = [];
-
-	try {
-		if (entry.mtr_google_hops) {
-			mtrHopsGoogle = JSON.parse(entry.mtr_google_hops);
-		}
-	} catch (e) {
-		console.error('Error parsing Google MTR hops:', e);
-		mtrGoogleContainer.innerHTML = `<p class="chart-description">MTR data parsing failed.</p>`;
+	if (!results || results.length === 0) {
+		DOMElements.mtrTableContainer.innerHTML = `<p class="chart-description">No MTR data available.</p>`;
 		return;
 	}
 
-	if (mtrHopsGoogle.length === 0 || (mtrHopsGoogle[0] && mtrHopsGoogle[0].error === 'failed')) {
-		mtrGoogleContainer.innerHTML = `<p class="chart-description">MTR data not available or test failed.</p>`;
+	// Display first endpoint (usually Cloudflare)
+	const firstEndpoint = results[0];
+	if (!firstEndpoint.hops || firstEndpoint.hops.length === 0) {
+		DOMElements.mtrTableContainer.innerHTML = `<p class="chart-description">MTR test failed or incomplete.</p>`;
 	} else {
-		mtrGoogleContainer.innerHTML = generateMtrTableHTML(mtrHopsGoogle);
+		DOMElements.mtrTableContainer.innerHTML = generateMtrTableHTML(firstEndpoint.hops);
+	}
+
+	// Handle Google MTR if exists
+	const googleSection = document.getElementById('mtr-google-section');
+	const googleContainer = document.getElementById('mtrGoogleTableContainer');
+	if (results.length > 1 && googleSection && googleContainer) {
+		googleSection.style.display = 'block';
+		const secondEndpoint = results[1];
+		if (secondEndpoint.hops && secondEndpoint.hops.length > 0) {
+			googleContainer.innerHTML = generateMtrTableHTML(secondEndpoint.hops);
+		} else {
+			googleContainer.innerHTML = `<p class="chart-description">MTR test failed.</p>`;
+		}
 	}
 }
 
 function generateMtrTableHTML(hops) {
-	let tableHTML = `
-        <table class="mtr-table">
-            <thead>
-                <tr>
-                    <th>Hop</th>
-                    <th>Host</th>
-                    <th>Loss %</th>
-                    <th>Sent</th>
-                    <th>Last (ms)</th>
-                    <th>Avg (ms)</th>
-                    <th>Best (ms)</th>
-                    <th>Worst (ms)</th>
-                    <th>StdDev</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+	let html = `
+		<table class="mtr-table">
+			<thead>
+				<tr>
+					<th>Hop</th><th>Host</th><th>Loss %</th><th>Sent</th>
+					<th>Last (ms)</th><th>Avg (ms)</th><th>Best (ms)</th><th>Worst (ms)</th><th>StdDev</th>
+				</tr>
+			</thead>
+			<tbody>
+	`;
 
 	hops.forEach((hop) => {
 		const lossPercent = safeNumber(hop.loss_percent, 0);
 		const lossClass = lossPercent > 10 ? 'loss-high' : lossPercent > 0 ? 'loss-medium' : '';
-		tableHTML += `
-            <tr>
-                <td>${hop.count || hop.hop || 'N/A'}</td>
-                <td>${hop.host || 'N/A'}</td>
-                <td class="${lossClass}">${lossPercent.toFixed(1)}%</td>
-                <td>${hop.sent || 'N/A'}</td>
-                <td>${safeNumber(hop.last_ms, 0).toFixed(1)}</td>
-                <td>${safeNumber(hop.avg_ms, 0).toFixed(1)}</td>
-                <td>${safeNumber(hop.best_ms, 0).toFixed(1)}</td>
-                <td>${safeNumber(hop.worst_ms, 0).toFixed(1)}</td>
-                <td>${safeNumber(hop.stddev, 0).toFixed(1)}</td>
-            </tr>
-        `;
+		html += `
+			<tr>
+				<td>${hop.count || hop.hop || 'N/A'}</td>
+				<td>${hop.host || 'N/A'}</td>
+				<td class="${lossClass}">${lossPercent.toFixed(1)}%</td>
+				<td>${hop.sent || 'N/A'}</td>
+				<td>${safeNumber(hop.last_ms, 0).toFixed(1)}</td>
+				<td>${safeNumber(hop.avg_ms, 0).toFixed(1)}</td>
+				<td>${safeNumber(hop.best_ms, 0).toFixed(1)}</td>
+				<td>${safeNumber(hop.worst_ms, 0).toFixed(1)}</td>
+				<td>${safeNumber(hop.stddev, 0).toFixed(1)}</td>
+			</tr>
+		`;
 	});
 
-	tableHTML += `
-            </tbody>
-        </table>
-    `;
-	return tableHTML;
+	html += `</tbody></table>`;
+	return html;
 }
 
 function renderDashboard() {
@@ -846,11 +683,11 @@ function renderDashboard() {
 		renderMtrTable(filteredData);
 	} catch (e) {
 		console.error('Error rendering dashboard:', e);
-		showUIState('error', 'Failed to render dashboard. Please try refreshing.');
+		showUIState('error', 'Failed to render dashboard. Please refresh.');
 	}
 }
 
-// Tooltips
+// --- Tooltips ---
 function initializeTooltips() {
 	for (const [triggerId, content] of Object.entries(TOOLTIP_CONTENT)) {
 		const trigger = document.getElementById(triggerId);
@@ -861,16 +698,13 @@ function initializeTooltips() {
 		tooltip.textContent = content;
 		tooltip.style.visibility = 'hidden';
 		tooltip.style.opacity = '0';
-
 		trigger.parentNode.appendChild(tooltip);
 
 		trigger.addEventListener('mouseenter', () => {
 			const triggerRect = trigger.getBoundingClientRect();
 			const parentRect = trigger.parentNode.getBoundingClientRect();
-
 			tooltip.style.left = `${triggerRect.left - parentRect.left + triggerRect.width / 2}px`;
 			tooltip.style.top = `${triggerRect.top - parentRect.top - tooltip.offsetHeight - 10}px`;
-
 			tooltip.style.visibility = 'visible';
 			tooltip.style.opacity = '1';
 		});
@@ -882,7 +716,7 @@ function initializeTooltips() {
 	}
 }
 
-// Event Listeners
+// --- Event Listeners ---
 DOMElements.timeRange?.addEventListener('change', (e) => {
 	currentTimeRange = e.target.value;
 	renderDashboard();
@@ -891,14 +725,15 @@ DOMElements.timeRange?.addEventListener('change', (e) => {
 DOMElements.mtrSelector?.addEventListener('change', (e) => {
 	const index = parseInt(e.target.value, 10);
 	const filteredData = filterDataByTimeRange(currentTimeRange);
-	const entriesWithMTR = filteredData.filter((entry) => entry.mtr_cloudflare_hops || entry.mtr_google_hops).reverse();
-	displayMtrForIndex(index, entriesWithMTR);
+	const mtrResults = parseEndpointResults(filteredData, 'mtr_results');
+	const entriesWithMTR = filteredData.filter((_, i) => mtrResults[i] && mtrResults[i].length > 0).reverse();
+	displayMtrForIndex(index, entriesWithMTR, mtrResults.reverse());
 });
 
-// Initialize
+// --- Initialize ---
 document.addEventListener('DOMContentLoaded', () => {
 	showUIState('loading');
 	fetchData();
-	setInterval(fetchData, 300000); // Refresh every 5 minutes
+	setInterval(fetchData, 300000);
 	initializeTooltips();
 });
