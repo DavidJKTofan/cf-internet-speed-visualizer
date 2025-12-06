@@ -13,8 +13,10 @@ const CHART_COLORS = {
 const TOOLTIP_CONTENT = {
 	'throughput-tooltip-trigger':
 		"Measures sustained data transfer rates using macOS NetworkQuality tool (Apple's RPM standard) and Ookla Speedtest CLI. Download represents inbound capacity; upload represents outbound capacity. Variability indicates congestion, throttling, or infrastructure limitations.",
-	'latency-tooltip-trigger':
-		'Round-trip time (RTT) measures network delay to infrastructure endpoints. Time to First Byte (TTFB) includes DNS lookup, TCP handshake, and server processing time. Elevated latency can indicate routing issues or packet loss.',
+	'rtt-tooltip-trigger':
+		'Round-trip time (RTT) measures network delay via ICMP echo requests to infrastructure endpoints. Shaded areas show min-max range; lines show average. Lower RTT indicates better routing and proximity to endpoints.',
+	'ttfb-tooltip-trigger':
+		'Time to First Byte (TTFB) includes DNS lookup, TCP handshake, TLS negotiation, and server processing time. Measures end-to-end latency to geographically distributed endpoints. Higher values may indicate routing issues or server distance.',
 	'responsiveness-tooltip-trigger':
 		"Apple's Responsiveness Per Minute (RPM) metric quantifies network quality under load by measuring round-trips per minute during active data transfer. Higher RPM indicates better interactive performance (e.g., video calls, gaming).",
 	'packet-loss-tooltip-trigger':
@@ -508,72 +510,84 @@ function renderCharts(data) {
 				},
 			},
 		},
-		latencyChart: {
+		rttChart: {
 			type: 'line',
 			data: {
 				datasets: [
 					createDataset(
-						'Cloudflare RTT Avg',
+						'Cloudflare',
 						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_avg) })),
-						CHART_COLORS.tertiary
-					),
-					createDataset(
-						'Cloudflare RTT Min',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_min) })),
 						CHART_COLORS.tertiary,
 						{
-							fill: '-1',
-							backgroundColor: `${CHART_COLORS.tertiary}1A`,
-							borderColor: 'transparent',
-							pointRadius: 0,
-							pointHoverRadius: 0,
-							tension: 0.4,
+							borderWidth: 2.5,
+							pointRadius: 2,
+							pointHoverRadius: 5,
 						}
 					),
 					createDataset(
-						'Cloudflare RTT Max',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_cf_rtt_max) })),
-						CHART_COLORS.tertiary,
-						{
-							fill: '1',
-							backgroundColor: `${CHART_COLORS.tertiary}1A`,
-							borderColor: 'transparent',
-							pointRadius: 0,
-							pointHoverRadius: 0,
-							tension: 0.4,
-						}
-					),
-					createDataset(
-						'Google RTT Avg',
+						'Google',
 						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_avg) })),
-						CHART_COLORS.quaternary
-					),
-					createDataset(
-						'Google RTT Min',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_min) })),
 						CHART_COLORS.quaternary,
 						{
-							fill: '-1',
-							backgroundColor: `${CHART_COLORS.quaternary}1A`,
-							borderColor: 'transparent',
-							pointRadius: 0,
-							pointHoverRadius: 0,
-							tension: 0.4,
+							borderWidth: 2.5,
+							pointRadius: 2,
+							pointHoverRadius: 5,
 						}
 					),
-					createDataset(
-						'Google RTT Max',
-						data.map((d) => ({ x: new Date(d.timestamp), y: safeNumber(d.ping_google_rtt_max) })),
-						CHART_COLORS.quaternary,
-						{
-							fill: '1',
-							backgroundColor: `${CHART_COLORS.quaternary}1A`,
-							borderColor: 'transparent',
-							pointRadius: 0,
-							pointHoverRadius: 0,
-							tension: 0.4,
-						}
-					),
+				],
+			},
+			options: {
+				...commonOptions,
+				plugins: {
+					...commonOptions.plugins,
+					tooltip: {
+						...commonOptions.plugins.tooltip,
+						callbacks: {
+							label: function (context) {
+								let label = context.dataset.label || '';
+								if (label) {
+									label += ': ';
+								}
+								if (context.parsed.y !== null) {
+									label += context.parsed.y.toFixed(1) + 'ms';
+								}
+								return label;
+							},
+							afterBody: function (tooltipItems) {
+								if (tooltipItems.length === 2) {
+									const cf = tooltipItems.find((item) => item.dataset.label === 'Cloudflare');
+									const google = tooltipItems.find((item) => item.dataset.label === 'Google');
+									if (cf && google && cf.parsed.y !== null && google.parsed.y !== null) {
+										const diff = Math.abs(cf.parsed.y - google.parsed.y);
+										const faster = cf.parsed.y < google.parsed.y ? 'Cloudflare' : 'Google';
+										const percent = ((diff / Math.min(cf.parsed.y, google.parsed.y)) * 100).toFixed(0);
+										return [``, `${faster} is ${diff.toFixed(1)}ms (${percent}%) faster`];
+									}
+								}
+								return [];
+							},
+						},
+					},
+				},
+				scales: {
+					...commonOptions.scales,
+					y: {
+						...commonOptions.scales.y,
+						title: { display: true, text: 'Latency (ms)', color: '#94a3b8', font: { size: 12 } },
+						ticks: {
+							...commonOptions.scales.y.ticks,
+							callback: function (value) {
+								return value + 'ms';
+							},
+						},
+					},
+				},
+			},
+		},
+		ttfbChart: {
+			type: 'line',
+			data: {
+				datasets: [
 					createDataset(
 						'US TTFB',
 						data.map((d) => ({
@@ -581,7 +595,7 @@ function renderCharts(data) {
 							y: d.curl_us_ttfb_s ? safeNumber(d.curl_us_ttfb_s * 1000) : null,
 						})),
 						CHART_COLORS.quinary,
-						{ fill: false, borderDash: [5, 5] }
+						{ fill: false }
 					),
 					createDataset(
 						'EU TTFB',
@@ -590,7 +604,7 @@ function renderCharts(data) {
 							y: d.curl_eu_ttfb_s ? safeNumber(d.curl_eu_ttfb_s * 1000) : null,
 						})),
 						CHART_COLORS.senary,
-						{ fill: false, borderDash: [5, 5] }
+						{ fill: false }
 					),
 				],
 			},
@@ -598,7 +612,7 @@ function renderCharts(data) {
 				...commonOptions,
 				scales: {
 					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } },
+					y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
 				},
 			},
 		},
@@ -667,7 +681,7 @@ function renderCharts(data) {
 				...commonOptions,
 				scales: {
 					...commonOptions.scales,
-					y: { ...commonOptions.scales.y, title: { display: true, text: 'ms', color: '#94a3b8' } },
+					y: { ...commonOptions.scales.y, title: { display: true, text: 'Latency (ms)', color: '#94a3b8' } },
 				},
 			},
 		},

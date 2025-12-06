@@ -82,12 +82,23 @@
 					<div class="chart-container">
 						<div class="chart-header">
 							<div class="chart-title-container">
-								<h2 class="chart-title">Latency Distribution</h2>
-								<div class="tooltip-trigger" id="latency-tooltip-trigger">?</div>
+								<h2 class="chart-title">Round-Trip Time (RTT)</h2>
+								<div class="tooltip-trigger" id="rtt-tooltip-trigger">?</div>
 							</div>
-							<p class="chart-description">Round-trip and TTFB latency to key infrastructure endpoints.</p>
+							<p class="chart-description">ICMP ping latency comparison. Lower is better.</p>
 						</div>
-						<canvas id="latencyChart"></canvas>
+						<canvas id="rttChart"></canvas>
+					</div>
+
+					<div class="chart-container">
+						<div class="chart-header">
+							<div class="chart-title-container">
+								<h2 class="chart-title">Time to First Byte (TTFB)</h2>
+								<div class="tooltip-trigger" id="ttfb-tooltip-trigger">?</div>
+							</div>
+							<p class="chart-description">End-to-end latency to US and EU endpoints via HTTPS.</p>
+						</div>
+						<canvas id="ttfbChart"></canvas>
 					</div>
 
 					<div class="chart-container">
@@ -231,7 +242,7 @@
 					</a>
 				</div>
 				<div class="footer-disclaimer">
-					Metrics are collected from local measurements and may not reflect actual ISP guarantees. <br>Data is for informational and diagnostic
+					Metrics are collected from local measurements and may not reflect actual ISP guarantees. Data is for informational and diagnostic
 					purposes only.
 				</div>
 			</div>
