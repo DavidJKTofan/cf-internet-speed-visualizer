@@ -170,3 +170,5 @@ local_script/network_quality_log.json
 local_script/network_quality_log.json
 /local_script/.buffer
 local_script/backup_data.json
+local_script/network_quality_log_v3.json
+local_script/transform-and-upload.sh
